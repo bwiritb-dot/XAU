@@ -1,0 +1,9 @@
+{
+  "name": "xaug-v2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build-core.mjs",
+    "test": "node --test \"tests/*.test.mjs\""
+  }
+}
