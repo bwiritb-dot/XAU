@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XAUUSDT Gold Strategy Terminal • 15m</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚱</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="lib/lightweight-charts.js"></script>
+</head>
+<body>
+  <div class="terminal-container">
+    
+    <!-- 1. ВЕРХНЯЯ ПАНЕЛЬ: МИРОВОЕ ВРЕМЯ И СЕССИИ -->
+    <header class="top-bar">
+      <div class="brand-group">
+        <div class="brand-logo">
+          <span class="gold-icon">⚱</span>
+          <span class="brand-title">XAU<span class="accent">PRO</span></span>
+        </div>
+        <div class="tf-badge">15M</div>
+      </div>
+
+      <!-- Мировые часы -->
+      <div class="world-clocks">
+        <div class="clock-item" id="clock-local">
+          <div class="clock-label">
+            <span class="clock-dot"></span> ЛОКАЛЬНОЕ
+          </div>
+          <div class="clock-time" id="time-local">--:--:--</div>
+          <div class="clock-date" id="date-local">---</div>
+        </div>
+
+        <div class="clock-item" id="clock-london">
+          <div class="clock-label">
+            <span class="session-badge" id="session-london">LONDON</span>
+          </div>
+          <div class="clock-time" id="time-london">--:--:--</div>
+          <div class="clock-sub">UTC+0 / BST</div>
+        </div>
+
+        <div class="clock-item" id="clock-china">
+          <div class="clock-label">
+            <span class="session-badge" id="session-china">КИТАЙ (BEIJING)</span>
+          </div>
+          <div class="clock-time" id="time-china">--:--:--</div>
+          <div class="clock-sub">UTC+8 (HKT)</div>
+        </div>
+
+        <div class="clock-item" id="clock-usa">
+          <div class="clock-label">
+            <span class="session-badge" id="session-usa">США (NEW YORK)</span>
+          </div>
+          <div class="clock-time" id="time-usa">--:--:--</div>
+          <div class="clock-sub">UTC-4 (EDT)</div>
+        </div>
+      </div>
+
+      <!-- Контролы: Колокольчик и статус WebSocket -->
+      <div class="header-controls">
+        <button id="alert-bell-btn" class="bell-btn active" title="Включить / выключить звуковой алерт при сигнале">
+          <svg class="bell-svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+          <span class="bell-pulse"></span>
+          <span class="bell-text">АЛЕРТ ВКЛ</span>
+        </button>
+
+        <button id="test-sound-btn" class="test-sound-btn" title="Проверить тройной звук">
+          🔊 ТЕСТ ЗВУКА
+        </button>
+
+        <div class="ws-status-pill online" id="ws-status">
+          <span class="ws-dot"></span>
+          <span class="ws-text">STREAM LIVE</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 2. СЕКЦИЯ КОТИРОВКИ ЗОЛОТА (HERO PRICE BAR) -->
+    <section class="price-hero-bar">
+      <div class="price-main-block">
+        <div class="symbol-meta">
+          <span class="symbol-name">XAUUSDT</span>
+          <span class="symbol-sub">Gold / Tether USD • Binance Futures</span>
+        </div>
+        <div class="price-display">
+          <span class="current-price" id="live-price">$----.--</span>
+          <span class="price-badge" id="price-change-badge">0.00%</span>
+        </div>
+      </div>
+
+      <div class="price-stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">24ч Изменение</div>
+          <div class="stat-value" id="stat-24h-chg">$0.00</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">24ч Максимум</div>
+          <div class="stat-value" id="stat-24h-high">$----.--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">24ч Минимум</div>
+          <div class="stat-value" id="stat-24h-low">$----.--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Правило 4ч</div>
+          <div class="stat-value text-gold" id="stat-4h-rule">Б/У + 0.15% (+0.19%)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. ОСНОВНОЙ ГРИД: ГРАФИК И ИНДИКАТОРНЫЙ РАДАР -->
+    <main class="terminal-main-grid">
+      
+      <!-- ЛЕВАЯ КОЛОНКА: ИНТЕРАКТИВНЫЙ ГРАФИК -->
+      <section class="chart-section card-box">
+        <div class="chart-header">
+          <div class="chart-title-group">
+            <span class="section-title">ГРАФИК ЦЕНЫ XAUUSDT (15M)</span>
+            <div class="legend-items">
+              <span class="legend-item"><span class="legend-color" style="background: #38bdf8;"></span> WSB БОКС</span>
+              <span class="legend-item"><span class="legend-color vwap-white"></span> VWAP</span>
+              <span class="legend-item"><span class="legend-color bb-orange"></span> BB (16, 3.9)</span>
+              <span class="legend-item"><b style="color: #10b981;">▲</b> Лонг</span>
+              <span class="legend-item"><b style="color: #f43f5e;">▼</b> Шорт</span>
+              <span class="legend-item"><b style="color: #38bdf8;">■</b> Закрытие [РОЙ]</span>
+            </div>
+          </div>
+
+          <div class="chart-actions">
+            <button class="chart-ctrl-btn active" id="btn-toggle-wsb-box">📦 WSB Бокс</button>
+            <button class="chart-ctrl-btn active" id="btn-toggle-markers">Сделки (▲/▼)</button>
+            <button class="chart-ctrl-btn active" id="btn-toggle-vwap">VWAP</button>
+            <button class="chart-ctrl-btn active" id="btn-toggle-bb">BB (16, 3.9)</button>
+            <button class="chart-ctrl-btn" id="btn-reset-view">Сброс</button>
+          </div>
+        </div>
+
+        <!-- Панель двойного времени (Моё время / UTC) и котировки свечи -->
+        <div class="chart-dual-time-bar" id="chart-dual-time-bar">
+          <div class="dual-time-group">
+            <span class="dual-time-chip local-chip">
+              <span class="chip-dot dot-local"></span>
+              <span class="chip-label">МОЁ ВРЕМЯ (КИЕВ):</span>
+              <b class="chip-time" id="dt-local-time">--:--</b>
+            </span>
+            <span class="chip-divider">/</span>
+            <span class="dual-time-chip utc-chip">
+              <span class="chip-dot dot-utc"></span>
+              <span class="chip-label">UTC (УСТ / БИРЖА):</span>
+              <b class="chip-time" id="dt-utc-time">--:--</b>
+            </span>
+            <span class="dt-candle-date" id="dt-candle-date">-- --- ----</span>
+          </div>
+
+          <div class="dt-ohlc-group" id="dt-ohlc-display">
+            <span class="dt-ohlc-item">O: <b id="dt-open">----</b></span>
+            <span class="dt-ohlc-item">H: <b id="dt-high">----</b></span>
+            <span class="dt-ohlc-item">L: <b id="dt-low">----</b></span>
+            <span class="dt-ohlc-item">C: <b id="dt-close">----</b></span>
+            <span class="dt-ohlc-item" id="dt-chg-wrap">Δ: <b id="dt-chg">0.00%</b></span>
+          </div>
+        </div>
+
+        <!-- Контейнер для графика TradingView -->
+        <div class="chart-container" id="tv-chart-container">
+          <div class="chart-loader" id="chart-loader">
+            <div class="spinner"></div>
+            <span>Подключение к потоку котировок...</span>
+          </div>
+        </div>
+
+        <div class="chart-footer-metrics">
+          <div class="footer-metric">
+            <span class="metric-name">VWAP 1.5% Верх:</span>
+            <span class="metric-val text-white" id="val-vwap-u2">----</span>
+          </div>
+          <div class="footer-metric">
+            <span class="metric-name">BB Верх (3.9σ):</span>
+            <span class="metric-val text-orange" id="val-bb-u">----</span>
+          </div>
+          <div class="footer-metric">
+            <span class="metric-name">Сессионный VWAP:</span>
+            <span class="metric-val text-white" id="val-vwap-mid">----</span>
+          </div>
+          <div class="footer-metric">
+            <span class="metric-name">BB Низ (3.9σ):</span>
+            <span class="metric-val text-orange" id="val-bb-l">----</span>
+          </div>
+          <div class="footer-metric">
+            <span class="metric-name">VWAP 1.5% Низ:</span>
+            <span class="metric-val text-white" id="val-vwap-l2">----</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ПРАВАЯ КОЛОНКА: ИНДИКАТОРЫ И СТРАТЕГИЧЕСКИЙ РАДАР -->
+      <!-- ПРАВАЯ КОЛОНКА: ОБЪЕДИНЕННАЯ ПАНЕЛЬ СТРАТЕГИЙ WSB + MEAN REVERSION -->
+      <aside class="indicators-section card-box">
+        
+        <!-- ВЕРХНЯЯ ПАНЕЛЬ САЙДБАРА: СТАТУСЫ И РАДАРЫ ПРОБОЯ / ГОТОВНОСТИ В ЛОНГ И ШОРТ -->
+        <div class="sidebar-strategy-header unified-header">
+          <!-- СДВОЕННЫЙ СТАТУС ОБЕИХ СТРАТЕГИЙ -->
+          <div class="dual-strategy-status-grid">
+            <!-- 1. Статус WSB -->
+            <div class="overall-strategy-status wsb-status-box" id="strategy-status-card">
+              <div class="status-top-meta">
+                <span class="status-title" id="strategy-status-title">⚡ WSB ORDER-FLOW</span>
+                <span class="status-pulse-dot"></span>
+              </div>
+              <div class="status-state text-cyan" id="strategy-state-text">СКАНИРОВАНИЕ WICK-СВЕЧЕЙ</div>
+              <div class="status-sub" id="strategy-sub-text">Поиск формации 3 из 5...</div>
+            </div>
+
+            <!-- 2. Статус Mean Reversion -->
+            <div class="overall-strategy-status mr-status-box" id="mr-status-card">
+              <div class="status-top-meta">
+                <span class="status-title">🎯 MEAN REVERSION</span>
+                <span class="status-pulse-dot mr-dot"></span>
+              </div>
+              <div class="status-state text-cyan" id="mr-state-text">МОНИТОРИНГ</div>
+              <div class="status-sub" id="mr-sub-text">Сканирование экстремумов VWAP/BB...</div>
+            </div>
+          </div>
+
+          <!-- ВЫНЕСЕННЫЕ НАВЕРХ РАДАРЫ: WSB ПРОБОЙ + MEAN REVERSION ГОТОВНОСТЬ -->
+          <div class="top-radars-container">
+            <!-- 1. СЕКЦИЯ WSB: ЛОНГ / ШОРТ ПРОБОЙ -->
+            <div class="radar-card-group wsb-radar-group">
+              <div class="radar-group-label text-cyan">⚡ WSB: ПРОБОЙ (LONG / SHORT)</div>
+              <div class="radar-group-grid">
+                <div class="readiness-block long-block compact-radar">
+                  <div class="readiness-head">
+                    <span class="readiness-title">🟢 WSB ЛОНГ ПРОБОЙ</span>
+                    <span class="readiness-percent" id="wsb-long-pct">0%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill long-fill" id="wsb-long-progress" style="width: 0%;"></div>
+                  </div>
+                  <div class="readiness-status" id="wsb-long-desc">Поиск бычьей секвенции (3 wicks)</div>
+                </div>
+
+                <div class="readiness-block short-block compact-radar">
+                  <div class="readiness-head">
+                    <span class="readiness-title">🔴 WSB ШОРТ ПРОБОЙ</span>
+                    <span class="readiness-percent" id="wsb-short-pct">0%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill short-fill" id="wsb-short-progress" style="width: 0%;"></div>
+                  </div>
+                  <div class="readiness-status" id="wsb-short-desc">Поиск медвежьей секвенции (3 wicks)</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. СЕКЦИЯ MEAN REVERSION: ГОТОВНОСТЬ В ЛОНГ / ШОРТ -->
+            <div class="radar-card-group mr-radar-group">
+              <div class="radar-group-label text-gold">🎯 MEAN REVERSION: ГОТОВНОСТЬ В ЛОНГ / ШОРТ</div>
+              <div class="radar-group-grid">
+                <div class="readiness-block long-block compact-radar">
+                  <div class="readiness-head">
+                    <span class="readiness-title">🟢 ГОТОВНОСТЬ В ЛОНГ</span>
+                    <span class="readiness-percent" id="long-readiness-pct">0%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill long-fill" id="long-progress-bar" style="width: 0%;"></div>
+                  </div>
+                  <div class="readiness-status" id="long-readiness-desc">Ожидание условий на покупку</div>
+                </div>
+
+                <div class="readiness-block short-block compact-radar">
+                  <div class="readiness-head">
+                    <span class="readiness-title">🔴 ГОТОВНОСТЬ В ШОРТ</span>
+                    <span class="readiness-percent" id="short-readiness-pct">0%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill short-fill" id="short-progress-bar" style="width: 0%;"></div>
+                  </div>
+                  <div class="readiness-status" id="short-readiness-desc">Ожидание условий на продажу</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- ЕДИНЫЙ СКРОЛЛИРУЕМЫЙ КОНТЕЙНЕР ОБЕИХ СТРАТЕГИЙ -->
+        <div class="unified-strategies-scroll">
+
+          <!-- ════════ БЛОК 1: WSB ORDER-FLOW ════════ -->
+          <div id="wsb-indicators-panel" class="strategy-panel active unified-subpanel">
+            <div class="section-header-row">
+              <div class="section-title">⚡ 1. WSB ORDER-FLOW • ПАРАМЕТРЫ И СИГНАЛЫ</div>
+              <div class="info-pill wsb-pill" title="Order-Flow дельта по тикам и секвенция теней">
+                ДЕЛЬТА • БОКС
+              </div>
+            </div>
+
+          <!-- Карточки WSB -->
+          <div class="indicator-cards-list">
+            
+            <!-- 1. ДЕТЕКТОР СЕКВЕНЦИИ ТЕНЕЙ (WICK SEQUENCE: 3 ИЗ 5) -->
+            <div class="ind-card wsb-card" id="card-wsb-wicks">
+              <div class="ind-card-header">
+                <div class="ind-name-tag">
+                  <span class="ind-name">Wick Sequence Detector (Окно 5)</span>
+                  <span class="ind-params">Порог ≥3 свечей • Тень ≥45%</span>
+                </div>
+                <div class="ind-val-box">
+                  <span class="ind-current-val" id="wsb-wicks-count">0 / 5</span>
+                </div>
+              </div>
+
+              <!-- Визуализатор 5 последних свечей -->
+              <div class="wick-candles-strip" id="wsb-candles-strip">
+                <div class="wick-candle-cell" id="wc-4"><span class="wc-label">S-4</span><span class="wc-icon">⬜</span></div>
+                <div class="wick-candle-cell" id="wc-3"><span class="wc-label">S-3</span><span class="wc-icon">⬜</span></div>
+                <div class="wick-candle-cell" id="wc-2"><span class="wc-label">S-2</span><span class="wc-icon">⬜</span></div>
+                <div class="wick-candle-cell" id="wc-1"><span class="wc-label">S-1</span><span class="wc-icon">⬜</span></div>
+                <div class="wick-candle-cell current-bar" id="wc-0"><span class="wc-label">NOW</span><span class="wc-icon">⬜</span></div>
+              </div>
+
+              <div class="ind-calc-row">
+                <div class="calc-label">Статус формации:</div>
+                <div class="calc-result" id="wsb-wicks-status">Сканирование...</div>
+              </div>
+              <div class="ind-calc-row sub-row">
+                <div class="calc-label">Текущая свеча (хвосты):</div>
+                <div class="calc-result" id="wsb-current-wick-info">Верх: 0% | Низ: 0%</div>
+              </div>
+            </div>
+
+            <!-- 2. АКТИВНЫЙ БОКС ФОРМАЦИИ -->
+            <div class="ind-card wsb-card" id="card-wsb-box">
+              <div class="ind-card-header">
+                <div class="ind-name-tag">
+                  <span class="ind-name">Активный Бокс (Границы по телам)</span>
+                  <span class="ind-params" id="wsb-box-type-tag">НЕТ БОКСА</span>
+                </div>
+                <div class="ind-val-box">
+                  <span class="box-age-badge" id="wsb-box-age-badge">0 / 100 БАРОВ</span>
+                </div>
+              </div>
+
+              <!-- Прогресс таймаута бокса -->
+              <div class="box-progress-wrapper">
+                <div class="box-progress-track">
+                  <div class="box-progress-fill" id="wsb-box-age-fill" style="width: 0%;"></div>
+                </div>
+              </div>
+
+              <div class="box-levels-grid">
+                <div class="box-lvl-item">
+                  <span class="lvl-label">ВЕРХ БОКСА:</span>
+                  <b class="lvl-val text-green" id="wsb-box-top">$----.--</b>
+                </div>
+                <div class="box-lvl-item">
+                  <span class="lvl-label">НИЗ БОКСА:</span>
+                  <b class="lvl-val text-red" id="wsb-box-bottom">$----.--</b>
+                </div>
+                <div class="box-lvl-item">
+                  <span class="lvl-label">ВЫСОТА БОКСА:</span>
+                  <b class="lvl-val text-cyan" id="wsb-box-height">$0.00</b>
+                </div>
+              </div>
+
+              <div class="ind-calc-row">
+                <div class="calc-label">Условие пробоя по Close:</div>
+                <div class="calc-result" id="wsb-box-condition">Ожидание формирования бокса...</div>
+              </div>
+            </div>
+
+            <!-- 3. ДЕЛЬТА И δ-RATIO (ПОТОК ОРДЕРОВ) -->
+            <div class="ind-card wsb-card" id="card-wsb-delta">
+              <div class="ind-card-header">
+                <div class="ind-name-tag">
+                  <span class="ind-name">Order-Flow δ-Ratio</span>
+                  <span class="ind-params">Рабочий порог: ±0.15 • Мертвая зона</span>
+                </div>
+                <div class="ind-val-box">
+                  <span class="ind-current-val" id="wsb-delta-ratio-val">0.000</span>
+                </div>
+              </div>
+
+              <!-- Шкала δ-Ratio: [-1.0 .. -0.15] ШОРТ | [-0.15 .. +0.15] DEAD | [+0.15 .. +1.0] ЛОНГ -->
+              <div class="delta-gauge-container">
+                <div class="delta-gauge-track">
+                  <div class="delta-zone zone-bear" style="width: 42.5%;"></div>
+                  <div class="delta-zone zone-dead" style="width: 15%;"></div>
+                  <div class="delta-zone zone-bull" style="width: 42.5%;"></div>
+                  <div class="delta-needle" id="wsb-delta-needle" style="left: 50%;"></div>
+                </div>
+                <div class="delta-gauge-markers">
+                  <span class="text-red">-1.0 (Шорт)</span>
+                  <span class="text-muted">-0.15</span>
+                  <span class="text-muted">0.0</span>
+                  <span class="text-muted">+0.15</span>
+                  <span class="text-green">+1.0 (Лонг)</span>
+                </div>
+              </div>
+
+              <div class="ind-calc-row">
+                <div class="calc-label">Поток формации:</div>
+                <div class="calc-result" id="wsb-delta-status">Нейтральный</div>
+              </div>
+              <div class="ind-calc-row sub-row">
+                <div class="calc-label">δ формации / Объем:</div>
+                <div class="calc-result" id="wsb-delta-details">0.0 oz / 0.0 oz</div>
+              </div>
+              <div class="ind-calc-row sub-row">
+                <div class="calc-label">δ свечи пробоя (импульс):</div>
+                <div class="calc-result" id="wsb-delta-breakout-val">0.0 oz</div>
+              </div>
+            </div>
+
+            <!-- 4. РЕЖИМНЫЕ ВОРОТА Z-SCORE -->
+            <div class="ind-card wsb-card" id="card-wsb-zscore">
+              <div class="ind-card-header">
+                <div class="ind-name-tag">
+                  <span class="ind-name">Режимные Ворота Z-Score</span>
+                  <span class="ind-params">Окно 100 • Порог |z| ≥ 1.0</span>
+                </div>
+                <div class="ind-val-box">
+                  <span class="ind-current-val" id="wsb-zscore-val">0.00</span>
+                  <span class="z-gate-badge" id="wsb-zscore-badge">ЗАКРЫТЫ</span>
+                </div>
+              </div>
+              <div class="ind-calc-row">
+                <div class="calc-label">Режим рынка:</div>
+                <div class="calc-result" id="wsb-zscore-status">Рынок вялый (|z| &lt; 1.0)</div>
+              </div>
+            </div>
+
+            <!-- 5. HTF-ФИЛЬТР СТРУКТУРЫ (1H / 4H) -->
+            <div class="ind-card wsb-card" id="card-wsb-htf">
+              <div class="ind-card-header">
+                <div class="ind-name-tag">
+                  <span class="ind-name">HTF-Структура (1h / 4h Swings)</span>
+                  <span class="ind-params">Разворотный фильтр уровней</span>
+                </div>
+                <div class="ind-val-box">
+                  <span class="htf-badge" id="wsb-htf-badge">В ПУСТОТЕ</span>
+                </div>
+              </div>
+              <div class="box-levels-grid">
+                <div class="box-lvl-item">
+                  <span class="lvl-label">СОПРОТИВЛЕНИЕ (ШОРТ):</span>
+                  <b class="lvl-val text-red" id="wsb-htf-res">$----.--</b>
+                </div>
+                <div class="box-lvl-item">
+                  <span class="lvl-label">ПОДДЕРЖКА (ЛОНГ):</span>
+                  <b class="lvl-val text-green" id="wsb-htf-sup">$----.--</b>
+                </div>
+              </div>
+              <div class="ind-calc-row">
+                <div class="calc-label">Разрешение входа:</div>
+                <div class="calc-result" id="wsb-htf-status">Сканирование уровней...</div>
+              </div>
+            </div>
+
+            <!-- 6. РИСК-МОДЕЛЬ И УРОВНИ ВХОДА (ATR*1.5 SL + RR TP) -->
+            <div class="ind-card wsb-card" id="card-wsb-risk">
+              <div class="ind-card-header">
+                <div class="ind-name-tag">
+                  <span class="ind-name">Уровни входа и цели (SL & TP)</span>
+                  <span class="ind-params">SL: ATR×1.5 • TP: RR 1:1, 1:2, 1:3</span>
+                </div>
+                <div class="ind-val-box">
+                  <span class="ind-current-val text-gold" id="wsb-atr-val">ATR: $0.00</span>
+                </div>
+              </div>
+              <div class="box-levels-grid">
+                <div class="box-lvl-item">
+                  <span class="lvl-label">СТОП-ЛОСС (SL):</span>
+                  <b class="lvl-val text-red" id="wsb-calc-sl">$----.--</b>
+                </div>
+                <div class="box-lvl-item">
+                  <span class="lvl-label">ТЕЙК TP1 (1:1):</span>
+                  <b class="lvl-val text-cyan" id="wsb-calc-tp1">$----.--</b>
+                </div>
+                <div class="box-lvl-item">
+                  <span class="lvl-label">ТЕЙК TP2 (1:2):</span>
+                  <b class="lvl-val text-green" id="wsb-calc-tp2">$----.--</b>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ════════ ПАНЕЛЬ 2: MEAN REVERSION ИНДИКАТОРЫ ════════ -->
+        <div id="meanrev-indicators-panel" class="strategy-panel active unified-subpanel">
+          <div class="section-header-row">
+            <div class="section-title">🎯 2. MEAN REVERSION • ЭКСТРЕМУМЫ & ОСЦИЛЛЯТОРЫ</div>
+            <div class="info-pill" title="Процент показывает, сколько осталось индикатору до порога принятия решения">
+              VWAP • BB 3.9σ
+            </div>
+          </div>
+
+
+
+          <!-- Детальные карточки индикаторов -->
+          <div class="indicator-cards-list">
+            
+            <!-- 1. ULTIMATE OSCILLATOR (UO) -->
+            <div class="ind-card" id="card-uo">
+              <div class="ind-card-header">
+                <div class="ind-name-tag">
+                  <span class="ind-name">Ultimate Oscillator (UO)</span>
+                  <span class="ind-params">12, 24, 48</span>
+                </div>
+                <div class="ind-val-box">
+                  <span class="ind-current-val" id="ind-uo-val">--.-</span>
+                </div>
+              </div>
+
+              <!-- Шкала прогресса UO -->
+              <div class="uo-scale-wrapper">
+                <div class="uo-scale-markers">
+                  <span>0</span>
+                  <span class="marker-long">40 (Лонг)</span>
+                  <span>50</span>
+                  <span class="marker-short">60 (Шорт)</span>
+                  <span>100</span>
+                </div>
+                <div class="uo-meter-track">
+                  <div class="uo-zone zone-buy" style="left: 0%; width: 40%;"></div>
+                  <div class="uo-zone zone-neutral" style="left: 40%; width: 20%;"></div>
+                  <div class="uo-zone zone-sell" style="left: 60%; width: 40%;"></div>
+                  <div class="uo-needle" id="uo-needle" style="left: 50%;"></div>
+                </div>
+              </div>
+
+              <div class="ind-calc-row">
+                <div class="calc-label">До уровня решения:</div>
+                <div class="calc-result" id="uo-calc-dist">Расчет...</div>
+              </div>
+            </div>
+
+            <!-- 2. AWESOME OSCILLATOR (AO) -->
+            <div class="ind-card" id="card-ao">
+              <div class="ind-card-header">
+                <div class="ind-name-tag">
+                  <span class="ind-name">Awesome Oscillator (AO)</span>
+                  <span class="ind-params">4, 96</span>
+                </div>
+                <div class="ind-val-box">
+                  <span class="ind-current-val" id="ind-ao-val">--.--</span>
+                  <span class="ao-color-badge" id="ind-ao-badge">--</span>
+                </div>
+              </div>
+              <div class="ind-calc-row">
+                <div class="calc-label">Статус разворота / порог:</div>
+                <div class="calc-result" id="ao-calc-dist">Расчет...</div>
+              </div>
+            </div>
+
+            <!-- 3. SMI ERGODIC -->
+            <div class="ind-card" id="card-smi">
+              <div class="ind-card-header">
+                <div class="ind-name-tag">
+                  <span class="ind-name">SMI Ergodic (TSI)</span>
+                  <span class="ind-params">4, 24, 4</span>
+                </div>
+                <div class="ind-val-box">
+                  <span class="ind-current-val" id="ind-smi-tsi">--.--</span>
+                  <span class="ind-sub-val" id="ind-smi-sig">Sig: --.--</span>
+                </div>
+              </div>
+              <div class="ind-calc-row">
+                <div class="calc-label">До пересечения сигнальной:</div>
+                <div class="calc-result" id="smi-calc-dist">Расчет...</div>
+              </div>
+            </div>
+
+            <!-- 4. LINREG SLOPE -->
+            <div class="ind-card" id="card-lrs">
+              <div class="ind-card-header">
+                <div class="ind-name-tag">
+                  <span class="ind-name">Linear Regression Slope</span>
+                  <span class="ind-params">Длина 7 | Порог ±3.0</span>
+                </div>
+                <div class="ind-val-box">
+                  <span class="ind-current-val" id="ind-lrs-val">--.--</span>
+                </div>
+              </div>
+              <div class="ind-calc-row">
+                <div class="calc-label">До триггера |LRS| > 3.0:</div>
+                <div class="calc-result" id="lrs-calc-dist">Расчет...</div>
+              </div>
+            </div>
+
+            <!-- 5. BB TOUCH VWAP 1.5% -->
+            <div class="ind-card" id="card-bb-touch">
+              <div class="ind-card-header">
+                <div class="ind-name-tag">
+                  <span class="ind-name">Касание BB (3.9σ) и VWAP 1.5%</span>
+                  <span class="ind-params">Экстремальная зона</span>
+                </div>
+                <div class="ind-val-box">
+                  <span class="touch-state-badge" id="touch-badge">ВНЕ ЗОНЫ</span>
+                </div>
+              </div>
+              <div class="ind-calc-row">
+                <div class="calc-label">Зазор между полосами:</div>
+                <div class="calc-result" id="touch-calc-dist">Расчет...</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div><!-- /.unified-strategies-scroll -->
+
+    </aside>
+
+    </main>
+
+
+
+    <!-- Всплывающие уведомления (Toasts) -->
+    <div class="toast-container" id="toast-container"></div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

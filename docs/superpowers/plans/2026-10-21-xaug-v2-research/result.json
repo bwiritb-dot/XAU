@@ -1,0 +1,182 @@
+{
+ "range": [
+  "2026-01-04T10:00:00.000Z",
+  "2026-10-21T16:00:00.000Z"
+ ],
+ "bars": 27865,
+ "WSB": [
+  {
+   "variant": "A метка/звук",
+   "signals": 388,
+   "perMonth": 40.7,
+   "long": 207,
+   "short": 181,
+   "winPct": 41,
+   "avgPct": -0.028,
+   "sumPct": -10.8,
+   "exits": {
+    "SL": 229,
+    "P50": 53,
+    "BE": 44,
+    "TP3": 62
+   }
+  },
+  {
+   "variant": "B карточка>=90",
+   "signals": 4,
+   "perMonth": 0.4,
+   "long": 2,
+   "short": 2,
+   "winPct": 75,
+   "avgPct": 0.34,
+   "sumPct": 1.4,
+   "exits": {
+    "P50": 1,
+    "TP3": 2,
+    "SL": 1
+   }
+  }
+ ],
+ "WSB_B_withBreakout": 1,
+ "WSB_A_boxDir_ne_breakDir": 203,
+ "WSB_same_bar_overlap": 1,
+ "MR": [
+  {
+   "variant": "A звук",
+   "signals": 44,
+   "perMonth": 4.6,
+   "long": 18,
+   "short": 26,
+   "winPct": 56.8,
+   "avgPct": -0.172,
+   "sumPct": -7.6,
+   "exits": {
+    "SL": 19,
+    "BE": 12,
+    "P50": 10,
+    "TP3": 3
+   }
+  },
+  {
+   "variant": "B метка",
+   "signals": 141,
+   "perMonth": 14.8,
+   "long": 61,
+   "short": 80,
+   "winPct": 64.5,
+   "avgPct": -0.08,
+   "sumPct": -11.3,
+   "exits": {
+    "BE": 53,
+    "SL": 50,
+    "P50": 27,
+    "TP3": 11
+   }
+  }
+ ],
+ "MR_overlap": 20,
+ "MR_B_byDir": [
+  {
+   "variant": "B long",
+   "signals": 61,
+   "perMonth": 6.4,
+   "long": 61,
+   "short": 0,
+   "winPct": 65.6,
+   "avgPct": -0.12,
+   "sumPct": -7.3,
+   "exits": {
+    "BE": 24,
+    "SL": 21,
+    "P50": 11,
+    "TP3": 5
+   }
+  },
+  {
+   "variant": "B short",
+   "signals": 80,
+   "perMonth": 8.4,
+   "long": 0,
+   "short": 80,
+   "winPct": 63.8,
+   "avgPct": -0.05,
+   "sumPct": -4,
+   "exits": {
+    "BE": 29,
+    "SL": 29,
+    "P50": 16,
+    "TP3": 6
+   }
+  }
+ ],
+ "MR_A_byDir": [
+  {
+   "variant": "A long",
+   "signals": 18,
+   "perMonth": 1.9,
+   "long": 18,
+   "short": 0,
+   "winPct": 44.4,
+   "avgPct": -0.411,
+   "sumPct": -7.4,
+   "exits": {
+    "BE": 4,
+    "SL": 10,
+    "P50": 4
+   }
+  },
+  {
+   "variant": "A short",
+   "signals": 26,
+   "perMonth": 2.7,
+   "long": 0,
+   "short": 26,
+   "winPct": 65.4,
+   "avgPct": -0.007,
+   "sumPct": -0.2,
+   "exits": {
+    "SL": 9,
+    "BE": 8,
+    "P50": 6,
+    "TP3": 3
+   }
+  }
+ ],
+ "P3": {
+  "chartStopMedPct": 0.33,
+  "cardStopMedPct": 0.402,
+  "cardTp1MedPct": 0.402
+ },
+ "P5_disagree": [
+  46,
+  388
+ ],
+ "check_wsb_exits": {
+  "markers": {
+   "SL": 245,
+   "BE": 45,
+   "P50": 55,
+   "TP3": 62
+  },
+  "mine": {
+   "SL": 245,
+   "P50": 55,
+   "BE": 45,
+   "TP3": 62
+  }
+ },
+ "check_mr_exits": {
+  "markers": {
+   "SL": 50,
+   "BE": 53,
+   "P50": 28,
+   "TP3": 11
+  },
+  "mine": {
+   "P50": 28,
+   "BE": 53,
+   "SL": 50,
+   "TP3": 11
+  }
+ }
+}

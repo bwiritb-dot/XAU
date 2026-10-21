@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>XAUG — Quick View</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-wrap">
+    <!-- Header -->
+    <header class="pop-header">
+      <div class="pop-brand">
+        <div class="pop-logo">⚱</div>
+        <div>
+          <div class="pop-title">XAUG <span class="pop-badge">15M</span></div>
+          <div class="pop-sub">Gold Strategy Terminal</div>
+        </div>
+      </div>
+      <div class="pop-price-block">
+        <div id="pop-price" class="pop-price">$----.--</div>
+        <div id="pop-chg" class="pop-chg">0.00%</div>
+      </div>
+    </header>
+
+    <!-- WSB Status Card -->
+    <div class="pop-card">
+      <div class="pop-card-title">
+        <span>⚡ WSB ORDER-FLOW СТАТУС</span>
+        <span id="pop-state-tag" class="tag neutral">СКАНИРОВАНИЕ</span>
+      </div>
+      <div id="pop-state-desc" class="pop-card-desc">Загрузка данных бокса...</div>
+
+      <!-- Readiness meters -->
+      <div class="pop-radar-row">
+        <div class="radar-item">
+          <div class="radar-label">
+            <span class="dot green"></span> ПОКУПКА (W)
+            <span id="pop-long-pct" class="radar-val">--%</span>
+          </div>
+          <div class="prog-bar"><div id="pop-long-bar" class="prog-fill green" style="width: 0%"></div></div>
+        </div>
+
+        <div class="radar-item">
+          <div class="radar-label">
+            <span class="dot red"></span> ПРОДАЖА (R)
+            <span id="pop-short-pct" class="radar-val">--%</span>
+          </div>
+          <div class="prog-bar"><div id="pop-short-bar" class="prog-fill red" style="width: 0%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Strategy parameters hint -->
+    <div class="pop-info-card">
+      <div class="info-row">
+        <span class="lbl">Правило 4ч:</span>
+        <span class="val text-green">ОТКЛЮЧЕНО</span>
+      </div>
+      <div class="info-row">
+        <span class="lbl">Ступени фиксации:</span>
+        <span class="val">+0.5% (50%) | +0.75% (25%) | +1.0% (25%)</span>
+      </div>
+      <div class="info-row">
+        <span class="lbl">Защита прибыли:</span>
+        <span class="val">Б/У при +0.5% ➔ Стоп в +0.5% при +0.75%</span>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="pop-actions">
+      <button id="btn-open-terminal" class="btn-main">
+        🚀 ОТКРЫТЬ ПОЛНЫЙ ТЕРМИНАЛ
+      </button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
