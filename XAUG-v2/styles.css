@@ -1,0 +1,61 @@
+:root { --bg: #0b0f17; --card: #111827; --line: #1e293b; --txt: #e2e8f0; --mut: #64748b; --g: #10b981; --r: #f43f5e; --gold: #f59e0b; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--txt); font: 13px/1.3 ui-monospace, Consolas, monospace; }
+body { display: grid; grid-template-rows: 48px 1fr 72px; }
+#top { display: flex; align-items: center; gap: 16px; padding: 0 16px; border-bottom: 1px solid var(--line); }
+#price { font-size: 22px; font-weight: 700; color: var(--gold); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--mut); }
+.dot.on { background: var(--g); }
+#mode { display: flex; gap: 4px; margin-left: auto; }
+#mode button, #sound { background: var(--card); color: var(--mut); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+#mode button.on, #sound.on { color: var(--gold); border-color: var(--gold); }
+main { display: grid; grid-template-columns: 1fr 380px; min-height: 0; }
+#chart-wrap { position: relative; min-height: 0; }
+#chart { position: absolute; inset: 0; }
+#boxes { position: absolute; inset: 0; pointer-events: none; width: 100%; height: 100%; }
+#dead { position: absolute; inset: 0; background: rgba(11, 15, 23, 0.65); display: none; pointer-events: none; }
+body.dead #dead { display: block; }
+body.dead #panel, body.dead #ruler { opacity: 0.35; filter: grayscale(1); }
+#panel { border-left: 1px solid var(--line); overflow-y: auto; padding: 12px; }
+.p { display: flex; flex-direction: column; gap: 12px; }
+.candles { display: flex; gap: 6px; justify-content: center; }
+.counts, .ready { display: flex; justify-content: center; gap: 24px; font-size: 16px; }
+.boxv { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.boxv.empty { color: var(--mut); opacity: 0.5; }
+.dist { display: flex; gap: 16px; color: var(--mut); }
+.age { position: relative; width: 160px; height: 14px; background: var(--line); border-radius: 3px; }
+.age b { position: absolute; inset: 0 auto 0 0; background: var(--mut); border-radius: 3px; }
+.age span { position: relative; font-size: 10px; padding-left: 4px; }
+.sig { font-size: 16px; text-align: center; }
+.sig.empty { color: var(--mut); }
+.score { display: flex; flex-direction: column; gap: 6px; }
+.score .total { font-size: 40px; font-weight: 700; text-align: center; }
+.scorebar { width: 100%; height: 12px; }
+.score .base { color: var(--mut); font-size: 11px; }
+.row { display: grid; grid-template-columns: 22px auto 36px 1fr; align-items: center; gap: 8px; color: var(--c); }
+.row.off { opacity: 0.45; }
+.track { position: relative; height: 10px; background: var(--line); border-radius: 2px; }
+.track b { position: absolute; inset: 0 auto 0 0; background: var(--c); border-radius: 2px; }
+.track .tick { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--bg); }
+.pts { text-align: right; font-weight: 700; }
+.val { color: var(--txt); opacity: 0.8; }
+.arm-row { display: grid; grid-template-columns: 22px 1fr 34px; align-items: center; gap: 8px; color: var(--mut); }
+.arm-row .w { text-align: center; color: var(--bg); font-weight: 700; border-radius: 3px; padding: 2px 0; }
+.cells { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; }
+.cell { height: 14px; border-radius: 2px; background: var(--line); }
+.cell.l { background: var(--g); } .cell.s { background: var(--r); }
+.lamps { display: flex; justify-content: space-between; align-items: center; }
+.lamps span { display: flex; gap: 6px; }
+.lamp { display: inline-flex; padding: 3px; border-radius: 4px; color: var(--mut); border: 1px solid var(--line); font-style: normal; }
+.lamp.l { color: var(--g); border-color: var(--g); } .lamp.s { color: var(--r); border-color: var(--r); }
+#ruler { border-top: 1px solid var(--line); padding: 4px 16px; }
+.ruler { display: flex; align-items: center; gap: 12px; height: 100%; }
+.ruler.empty { opacity: 0.2; }
+.ruler .dir { font-size: 24px; color: var(--c); }
+.ruler svg { flex: none; }
+@media (max-width: 900px) {
+  body { grid-template-rows: 48px auto 72px; }
+  main { grid-template-columns: 1fr; }
+  #chart-wrap { height: 55vh; }
+  #panel { border-left: 0; border-top: 1px solid var(--line); }
+}

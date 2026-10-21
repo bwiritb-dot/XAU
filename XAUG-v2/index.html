@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XAUG v2</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute">
+    <defs><pattern id="hatch" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="3" stroke="#94a3b8" stroke-width="1"/></pattern></defs>
+  </svg>
+  <header id="top">
+    <span id="price"></span>
+    <i id="live" class="dot"></i>
+    <nav id="mode">
+      <button data-mode="wsb" aria-label="wsb"></button>
+      <button data-mode="mr" aria-label="mr"></button>
+    </nav>
+    <button id="sound" aria-label="sound"></button>
+  </header>
+  <main>
+    <section id="chart-wrap">
+      <div id="chart"></div>
+      <svg id="boxes"></svg>
+      <div id="dead"></div>
+    </section>
+    <aside id="panel"></aside>
+  </main>
+  <footer id="ruler"></footer>
+  <script src="lib/lightweight-charts.js"></script>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="30%" stop-color="#f59e0b" />
+      <stop offset="70%" stop-color="#d97706" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#fbbf24" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#bgGrad)" stroke="#f59e0b" stroke-width="2.5" stroke-opacity="0.4" />
+
+  <!-- Gold Bullion / Ingot geometry -->
+  <!-- Top trapezoid -->
+  <polygon points="40,32 88,32 100,52 28,52" fill="url(#goldGrad)" opacity="0.95" />
+  <!-- Front face -->
+  <polygon points="28,52 100,52 92,94 36,94" fill="url(#goldGrad)" />
+  <!-- Side facet shadow -->
+  <polygon points="88,32 100,52 92,94 82,78" fill="#b45309" opacity="0.4" />
+
+  <!-- Gold Stamp Text "XAU" -->
+  <text x="64" y="76" font-family="'Inter', 'Arial Black', sans-serif" font-weight="900" font-size="20" fill="#451a03" text-anchor="middle" letter-spacing="1">XAU</text>
+
+  <!-- Upward Trend Indicator arrow -->
+  <polygon points="98,28 116,28 116,46" fill="#10b981" />
+  <line x1="82" y1="62" x2="114" y2="30" stroke="#10b981" stroke-width="4.5" stroke-linecap="round" />
+</svg>
