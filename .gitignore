@@ -2,3 +2,5 @@ trades.csv
 /0
 node_modules/
 lab/data/
+lab/__pycache__/
+lab/out/run.log
