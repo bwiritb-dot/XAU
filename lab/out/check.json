@@ -1,0 +1,106 @@
+{
+ "parity": [
+  {
+   "set": "фикстура",
+   "strat": "wsb",
+   "core": 122,
+   "engine": 122,
+   "same": true,
+   "onlyCore": [],
+   "onlyMine": []
+  },
+  {
+   "set": "фикстура",
+   "strat": "mr",
+   "core": 35,
+   "engine": 35,
+   "same": true,
+   "onlyCore": [],
+   "onlyMine": []
+  },
+  {
+   "set": "XAUUSDT 11 мес",
+   "strat": "wsb",
+   "core": 1208,
+   "engine": 1208,
+   "same": true,
+   "onlyCore": [],
+   "onlyMine": []
+  },
+  {
+   "set": "XAUUSDT 11 мес",
+   "strat": "mr",
+   "core": 415,
+   "engine": 415,
+   "same": true,
+   "onlyCore": [],
+   "onlyMine": []
+  }
+ ],
+ "speed": [
+  {
+   "strat": "wsb",
+   "candles": 215379,
+   "sec": 0.035934481000000004,
+   "trades": 5212
+  },
+  {
+   "strat": "mr",
+   "candles": 215379,
+   "sec": 0.23461519300000008,
+   "trades": 307
+  }
+ ],
+ "transfer": [
+  {
+   "strat": "wsb",
+   "paxg": {
+    "trades": 390,
+    "winRate": 0.4,
+    "rr": 1.2113034106991225,
+    "avgWin": 0.4588810557018968,
+    "avgLoss": 0.37883246397948017,
+    "expectancy": -0.04374705610692957,
+    "total": -17.06135188170253,
+    "maxDD": 24.893034091308223
+   },
+   "xau": {
+    "trades": 451,
+    "winRate": 0.3924611973392461,
+    "rr": 1.2883895935923937,
+    "avgWin": 0.4904943502824819,
+    "avgLoss": 0.3807034399547153,
+    "expectancy": -0.03879211207891958,
+    "total": -17.49524254759273,
+    "maxDD": 24.945397220021267
+   },
+   "matched": 208,
+   "share": 0.4611973392461197
+  },
+  {
+   "strat": "mr",
+   "paxg": {
+    "trades": 144,
+    "winRate": 0.6319444444444444,
+    "rr": 0.41491943277656984,
+    "avgWin": 0.3649725274725242,
+    "avgLoss": 0.8796226415094383,
+    "expectancy": -0.09310763888889242,
+    "total": -13.407500000000509,
+    "maxDD": 16.08750000000044
+   },
+   "xau": {
+    "trades": 142,
+    "winRate": 0.647887323943662,
+    "rr": 0.41222370658245744,
+    "avgWin": 0.3689402173913009,
+    "avgLoss": 0.8950000000000036,
+    "expectancy": -0.07610915492958102,
+    "total": -10.807500000000505,
+    "maxDD": 14.465000000000458
+   },
+   "matched": 116,
+   "share": 0.8055555555555556
+  }
+ ]
+}
