@@ -59,10 +59,10 @@ export function indexAt(ds, timeSec) {
 // ─── Сопровождение сделки ────────────────────────────────────────────
 // cascade=false — WSB (внутри свечи после TP проверяются только следующие TP),
 // cascade=true — Разворот (после TP на той же свече проверяется и новый стоп).
-function makePos(dir, entry, sl, p) {
+function makePos(dir, entry, sl, p, detail = false) {
   const L = dir === 1;
   return {
-    dir, entry, sl, stage: 0, left: 1, realized: 0, held: 0,
+    dir, entry, sl, sl0: sl, stage: 0, left: 1, realized: 0, held: 0, ex: detail ? [] : null,
     tp: [L ? entry * up(p.tp1) : entry * dn(p.tp1), L ? entry * up(p.tp2) : entry * dn(p.tp2), L ? entry * up(p.tp3) : entry * dn(p.tp3)],
     stops: [L ? entry * up(p.be1) : entry * dn(p.be1), L ? entry * up(p.be2) : entry * dn(p.be2)],
     frac: [p.f1 / 100, p.f2 / 100, (100 - p.f1 - p.f2) / 100],
@@ -78,6 +78,7 @@ function tpHit(pos, h, l) { const x = pos.tp[pos.stage]; return pos.dir === 1 ? 
 
 function closeStop(pos, ev, t) {
   pos.realized += pos.left * move(pos, pos.sl);
+  if (pos.ex) pos.ex.push({ t, kind: KIND_STOP[pos.stage], price: pos.sl, frac: pos.left });
   pos.left = 0;
   if (ev) ev.push({ t, kind: KIND_STOP[pos.stage], pnl: pos.stage === 0 ? move(pos, pos.sl) - FEE : null });
 }
@@ -86,6 +87,7 @@ function takeTp(pos, ev, t) {
   const k = pos.stage;
   const f = Math.min(pos.frac[k], pos.left);
   pos.realized += f * move(pos, pos.tp[k]);
+  if (pos.ex) pos.ex.push({ t, kind: `TP${k + 1}`, price: pos.tp[k], frac: f });
   pos.left = +(pos.left - f).toFixed(10);
   if (ev) ev.push({ t, kind: `TP${k + 1}` });
   if (k < 2) pos.sl = pos.stops[k];
@@ -108,13 +110,24 @@ function stepMr(pos, h, l, ev, t) {
   return false;
 }
 
+// Закрытие остатка по рынку (лимит времени).
+function closeAt(pos, price, t) {
+  pos.realized += pos.left * move(pos, price);
+  if (pos.ex) pos.ex.push({ t, kind: "TIME", price, frac: pos.left });
+  pos.left = 0;
+}
+
 function finish(trades, pos, entryIdx, exitIdx) {
-  trades.push({ entryIdx, exitIdx, dir: pos.dir, pnl: pos.realized - FEE });
+  const tr = { entryIdx, exitIdx, dir: pos.dir, pnl: pos.realized - FEE };
+  // detail: цены и выходы сделки — для просмотрщика lab/viewer
+  if (pos.ex) Object.assign(tr, { entry: pos.entry, sl0: pos.sl0, tp: pos.tp, stops: pos.stops, frac: pos.frac, exits: pos.ex });
+  trades.push(tr);
+  return tr;
 }
 
 // ─── WSB ──────────────────────────────────────────────────────────────
 // [i0, i1) — расчётный срез (с прогревом); сделки берутся с входом в [e0, e1).
-export function runWsb(ds, p, i0, i1, e0 = i0, e1 = i1, ev = null) {
+export function runWsb(ds, p, i0, i1, e0 = i0, e1 = i1, ev = null, detail = false) {
   const n = i1 - i0;
   const trades = [];
   if (n < 30) return trades;
@@ -160,7 +173,7 @@ export function runWsb(ds, p, i0, i1, e0 = i0, e1 = i1, ev = null) {
         box.pend = out;
       } else box.cnt = 0;
       if (out !== 0 && box.cnt >= p.confirm) {
-        if (!dead[i]) entries.push({ k, dir: out, top: box.top, bottom: box.bottom });
+        if (!dead[i]) entries.push({ k, dir: out, top: box.top, bottom: box.bottom, box });
         if (k < n - 1) box = null;
       } else if (box.age >= p.boxLife) box = null;
     }
@@ -176,7 +189,7 @@ export function runWsb(ds, p, i0, i1, e0 = i0, e1 = i1, ev = null) {
         if (hi > top) top = hi;
         if (lo < bottom) bottom = lo;
       }
-      if (bear >= need || bull >= need) box = { top, bottom, age: 0, pend: 0, cnt: 0 };
+      if (bear >= need || bull >= need) box = { top, bottom, age: 0, pend: 0, cnt: 0, k, bear, bull };
     }
   }
 
@@ -190,20 +203,28 @@ export function runWsb(ds, p, i0, i1, e0 = i0, e1 = i1, ev = null) {
     if (e.k >= n - 1) continue;
     const riskDist = a * p.slAtr;
     const sl = e.dir === 1 ? Math.min(entry - riskDist, e.bottom) : Math.max(entry + riskDist, e.top);
-    const pos = makePos(e.dir, entry, sl, p);
+    const pos = makePos(e.dir, entry, sl, p, detail);
     const end = Math.min(e.k + limit, n);
     let done = false, j = e.k + 1;
     for (; j < end; j++) {
       const ii = i0 + j;
       if (stepWsb(pos, h[ii], l[ii], ev, t[ii])) { done = true; break; }
     }
-    if (done) finish(trades, pos, ei, i0 + j);
+    let tr = null;
+    if (done) tr = finish(trades, pos, ei, i0 + j);
     else if (e.k + limit <= n) {
       // лимит времени: остаток закрывается по закрытию последней свечи окна
       const xi = i0 + end - 1;
-      pos.realized += pos.left * move(pos, c[xi]);
-      pos.left = 0;
-      finish(trades, pos, ei, xi);
+      closeAt(pos, c[xi], t[xi]);
+      tr = finish(trades, pos, ei, xi);
+    }
+    if (tr && detail) {
+      const b = e.box, wicks = [];
+      for (let q = b.k - W + 1; q <= b.k; q++) if (wick[q]) wicks.push([t[i0 + q], wick[q]]);
+      tr.why = {
+        boxFrom: t[i0 + b.k - W + 1], boxFormed: t[i0 + b.k], top: b.top, bottom: b.bottom, bear: b.bear, bull: b.bull,
+        need, win: W, edge: p.boxEdge, wicks, age: b.age, confirm: p.confirm, close: entry, atr: a, slAtr: p.slAtr,
+      };
     }
   }
   return trades;
@@ -297,7 +318,7 @@ export function mrIndicators(ds, p, i0, i1) {
   return I;
 }
 
-export function runMr(ds, p, i0, i1, e0 = i0, e1 = i1, ev = null) {
+export function runMr(ds, p, i0, i1, e0 = i0, e1 = i1, ev = null, detail = false) {
   const n = i1 - i0;
   const trades = [];
   if (n < 50) return trades;
@@ -318,12 +339,14 @@ export function runMr(ds, p, i0, i1, e0 = i0, e1 = i1, ev = null) {
       pos.held++;
       let closed = stepMr(pos, h[i], l[i], posIdx >= e0 && posIdx < e1 ? ev : null, t[i]);
       if (!closed && pos.held >= limit) {
-        pos.realized += pos.left * move(pos, c[i]);
-        pos.left = 0;
+        closeAt(pos, c[i], t[i]);
         closed = true;
       }
       if (closed) {
-        if (posIdx >= e0 && posIdx < e1) finish(trades, pos, posIdx, i);
+        if (posIdx >= e0 && posIdx < e1) {
+          const tr = finish(trades, pos, posIdx, i);
+          if (pos.why) tr.why = pos.why;
+        }
         pos = null;
       }
     }
@@ -341,8 +364,23 @@ export function runMr(ds, p, i0, i1, e0 = i0, e1 = i1, ev = null) {
     else if (shortArmed && st >= p.turnsNeed) dir = -1;
     if (dir === 0 || dead[i]) continue;
     const entry = c[i];
-    pos = makePos(dir, entry, dir === 1 ? entry * dn(p.slLong) : entry * up(p.slShort), p);
+    pos = makePos(dir, entry, dir === 1 ? entry * dn(p.slLong) : entry * up(p.slShort), p, detail);
     posIdx = i;
+    if (detail) {
+      const a = dir === 1 ? lastL : lastS, ia = i0 + a;
+      pos.why = {
+        armT: t[ia], armWin: p.armWin, turnsNeed: p.turnsNeed, turns: dir === 1 ? lt : st,
+        arm: { bb: dir === 1 ? I.bbL[a] : I.bbU[a], vwapLine: I.vwap[a] * (dir === 1 ? lo : hi), tsi: I.tsi[a], ao: I.ao[a],
+          uo: I.uo[a], uoThr: dir === 1 ? uoLo : uoHi, lrs: I.lrs[a], lrsThr: dir === 1 ? -thr : thr },
+        turn: {
+          ao: dir === 1 ? I.aoC[k] === 1 && I.aoC[q] === -1 : I.aoC[k] === -1 && I.aoC[q] === 1,
+          smi: dir === 1 ? I.tsi[k] > I.sig[k] && I.tsi[q] <= I.sig[q] : I.tsi[k] < I.sig[k] && I.tsi[q] >= I.sig[q],
+          uo: dir === 1 ? I.uo[k] > I.uo[q] : I.uo[k] < I.uo[q],
+          lrs: dir === 1 ? I.lrs[k] > I.lrs[q] : I.lrs[k] < I.lrs[q],
+          vals: { tsi: [I.tsi[q], I.tsi[k]], sig: [I.sig[q], I.sig[k]], uo: [I.uo[q], I.uo[k]], lrs: [I.lrs[q], I.lrs[k]], ao: [I.ao[q], I.ao[k]] },
+        },
+      };
+    }
     if (ev && i >= e0 && i < e1) ev.push({ t: t[i], kind: dir === 1 ? "LONG" : "SHORT" });
   }
   return trades;
@@ -373,7 +411,7 @@ export function metrics(trades) {
   };
 }
 
-export function run(strat, ds, params, i0, i1, e0, e1, ev) {
+export function run(strat, ds, params, i0, i1, e0, e1, ev, detail = false) {
   const p = { ...DEFAULTS[strat], ...params };
-  return strat === "wsb" ? runWsb(ds, p, i0, i1, e0, e1, ev) : runMr(ds, p, i0, i1, e0, e1, ev);
+  return strat === "wsb" ? runWsb(ds, p, i0, i1, e0, e1, ev, detail) : runMr(ds, p, i0, i1, e0, e1, ev, detail);
 }

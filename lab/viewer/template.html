@@ -1,0 +1,463 @@
+<title>XAUG Backtest Viewer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Раскладка: слева выбор набора, в центре график PAXG 15m, справа — разбор выбранной сделки. На телефоне — столбиком. */
+:root {
+  color-scheme: dark;
+  --bg: #0d1015;
+  --panel: #141920;
+  --raise: #1b222b;
+  --line: #242c37;
+  --fg: #e4e8ee;
+  --muted: #8b95a4;
+  --gold: #d6ad52;
+  --long: #3fb68b;
+  --short: #e5585f;
+  --be: #d9b13b;
+  --ghost: rgba(156, 172, 194, 0.42);
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font: 13px/1.45 var(--sans); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 10px 12px; gap: 10px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: .01em; }
+h1 small { color: var(--muted); font-weight: 400; margin-left: 6px; font-family: var(--mono); font-size: 12px; }
+.seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+.seg button { background: none; border: 0; padding: 5px 12px; border-radius: 6px; cursor: pointer; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--raise); color: var(--fg); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 12px; margin-left: auto; align-items: center; }
+.legend b { font-weight: 500; }
+.k-long { color: var(--long); } .k-short { color: var(--short); } .k-ghost { color: var(--ghost); }
+.legend label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; color: var(--fg); }
+.main { min-height: 0; display: grid; grid-template-columns: 270px minmax(0, 1fr) 340px; gap: 10px; }
+.pane { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-height: 0; overflow: auto; }
+.sets { padding: 6px; }
+.sets h2, .detail h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 500; margin: 10px 8px 6px; }
+.set { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; width: 100%; text-align: left; background: none; border: 1px solid transparent; border-radius: 7px; padding: 6px 8px; cursor: pointer; }
+.set:hover { background: var(--raise); }
+.set[aria-pressed="true"] { border-color: var(--gold); background: var(--raise); }
+.set .nm { font-weight: 500; }
+.set .per { color: var(--muted); font-size: 11px; grid-column: 1; font-family: var(--mono); }
+.set .res { grid-row: 1 / span 2; grid-column: 2; text-align: right; font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; align-self: center; }
+.set .res span { display: block; color: var(--muted); font-size: 11px; }
+.pos { color: var(--long); } .neg { color: var(--short); }
+.chartwrap { position: relative; min-height: 320px; display: grid; grid-template-rows: auto 1fr; grid-template-columns: minmax(0, 1fr); }
+.bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.bar .stat b { color: var(--fg); font-family: var(--mono); font-weight: 500; }
+.bar .nav { margin-left: auto; display: inline-flex; gap: 4px; align-items: center; }
+.btn { background: var(--raise); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+#chart { min-height: 0; }
+.status { position: absolute; left: 12px; bottom: 34px; font-size: 12px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; pointer-events: none; z-index: 3; }
+.detail { padding: 4px 14px 14px; }
+.detail .empty { color: var(--muted); margin: 14px 0; max-width: 34ch; }
+.tr-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 12px 0 2px; }
+.tr-head .dir { font-size: 16px; font-weight: 600; }
+.tr-head .pnl { font-family: var(--mono); font-size: 18px; font-weight: 500; }
+.sub { color: var(--muted); font-family: var(--mono); font-size: 11.5px; }
+.chip { display: inline-block; font-size: 11px; border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; margin: 8px 0 0; color: var(--muted); }
+.chip.test { border-color: var(--gold); color: var(--gold); }
+.why { display: grid; gap: 6px; }
+.why p { margin: 0; }
+table.kv { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+table.kv td, table.kv th { padding: 4px 4px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+table.kv th { color: var(--muted); font-weight: 400; }
+table.kv td.n { font-family: var(--mono); text-align: right; white-space: nowrap; }
+.ok { color: var(--long); } .no { color: var(--short); }
+.mono { font-family: var(--mono); }
+.wicks { display: flex; flex-wrap: wrap; gap: 4px; }
+.wicks span { font-family: var(--mono); font-size: 11px; border-radius: 4px; padding: 1px 6px; background: var(--raise); }
+.ghosts { display: grid; gap: 4px; margin-top: 6px; }
+details.params { margin: 8px 6px 4px; }
+details.params summary { cursor: pointer; color: var(--muted); font-size: 12px; padding: 4px 2px; }
+.chg td:first-child { color: var(--gold); }
+@media (max-width: 1000px) {
+  .app { height: auto; display: block; }
+  header { margin-bottom: 10px; }
+  .legend { margin-left: 0; }
+  .main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .sets { max-height: 260px; }
+  .chartwrap { height: 62vh; }
+  .detail { max-height: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app">
+  <header>
+    <h1>XAUG Backtest Viewer <small>PAXGUSDT · 15m · время UTC</small></h1>
+    <div class="seg" role="group" aria-label="Стратегия">
+      <button id="s-wsb" aria-pressed="true">WSB A</button>
+      <button id="s-mr" aria-pressed="false">Разворот B</button>
+    </div>
+    <div class="legend">
+      <span><b class="k-long">▲</b> / <b class="k-short">▼</b> входы выбранного набора</span>
+      <span><b class="k-long">●</b> / <b class="k-short">●</b> выход: итог в плюсе / в минусе</span>
+      <label><input type="checkbox" id="ghost-on" checked> <b class="k-ghost">△ ×N</b> входы других наборов (N — сколько наборов вошли на этой свече)</label>
+    </div>
+  </header>
+  <div class="main">
+    <aside class="pane sets" id="sets" aria-label="Наборы настроек"></aside>
+    <section class="pane chartwrap">
+      <div class="bar" id="bar"></div>
+      <div id="chart"></div>
+      <div class="status" id="status">Загружаю свечи…</div>
+    </section>
+    <aside class="pane detail" id="detail" aria-live="polite">
+      <h2>Сделка</h2>
+      <p class="empty">Нажмите на стрелку входа на графике — здесь появится, почему стратегия вошла, уровни и как закрылась сделка. Бледная стрелка покажет, какие наборы вошли на этой свече.</p>
+    </aside>
+  </div>
+</div>
+
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+/*__ENGINE__*/
+</script>
+<script>
+const SETS = /*__SETS__*/null;
+const DATA_B64 = "/*__DATA__*/";
+
+const C = {
+  bg: "#141920", line: "#242c37", grid: "#1a2029", muted: "#8b95a4", fg: "#e4e8ee", gold: "#d6ad52",
+  long: "#3fb68b", short: "#e5585f", be: "#d9b13b", ghost: "rgba(156, 172, 194, 0.42)",
+  up: "#5d7d73", down: "#8a5458",
+};
+const LBL = {
+  atrPeriod: "Период ATR", wickPct: "Доля тени от свечи, %", wickRatio: "Тень / max(тело, другая тень)",
+  minRangeAtr: "Мин. размер свечи, ATR", boxWin: "Окно бокса, свечей", minWicks: "Мин. теней в окне",
+  boxEdge: "Границы бокса", confirm: "Закрытий для пробоя", boxLife: "Жизнь бокса, свечей", slAtr: "Стоп, ATR",
+  bbP: "Боллинджер, период", bbSd: "Боллинджер, σ", vwapDev: "Отклонение от VWAP, %", aoFast: "AO быстрый",
+  aoSlow: "AO медленный", smiFast: "SMI быстрый", smiSlow: "SMI медленный", smiSig: "SMI сигнал",
+  uoMult: "UO периоды, × 12-24-48", uoLow: "UO порог", lrsLen: "LRS период", lrsThr: "LRS порог",
+  armWin: "Окно взвода, свечей", turnsNeed: "Разворотов из 4", slLong: "Стоп лонга, %", slShort: "Стоп шорта, %",
+  tp1: "TP1, %", tp2: "TP2, %", tp3: "TP3, %", f1: "Доля TP1, %", f2: "Доля TP2, %",
+  be1: "Стоп после TP1, % от входа", be2: "Стоп после TP2, % от входа", timeLimit: "Лимит времени, свечей (0 — нет)",
+};
+const KIND = { TP1: "TP1", TP2: "TP2", TP3: "TP3", SL: "Стоп", BE: "Стоп после TP1", P50: "Стоп после TP2", TIME: "Лимит времени" };
+
+const $ = (id) => document.getElementById(id);
+const fmtT = (s) => new Date(s * 1000).toISOString().slice(0, 16).replace("T", " ");
+const fmtD = (s) => new Date(s * 1000).toISOString().slice(0, 10);
+const f2 = (x) => (Math.round(x * 100) / 100).toFixed(2);
+const sg = (x, d = 2) => (x >= 0 ? "+" : "") + x.toFixed(d);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+let ds, chart, candles, boxTop, boxBot, path;
+let strat = "wsb", setId = "orig", selected = null, priceLines = [];
+const cache = {}; // `${strat}|${id}` → trades
+let ghostToken = 0, ghostMap = new Map(), ghostReady = 0;
+
+async function loadData() {
+  const bin = Uint8Array.from(atob(DATA_B64), (c) => c.charCodeAt(0));
+  const text = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+  const d = JSON.parse(text);
+  // t — шаги по 15 мин, c — изменение закрытия в центах, o/h/l — от закрытия в центах, v — объём × 1e6
+  const rows = new Array(d.c.length);
+  let t = d.t0, c = 0;
+  for (let i = 0; i < rows.length; i++) {
+    t += d.dt[i] * 900; c += d.c[i];
+    rows[i] = [t, (c + d.o[i]) / 100, (c + d.h[i]) / 100, (c + d.l[i]) / 100, c / 100, d.v[i] / 1e6, 0];
+  }
+  return rows;
+}
+
+function tradesOf(st, id) {
+  const key = st + "|" + id;
+  if (!cache[key]) {
+    const s = SETS[st].find((x) => x.id === id);
+    cache[key] = run(st, ds, s.params, 0, ds.n, 0, ds.n, null, true);
+  }
+  return cache[key];
+}
+
+function periodOf(s, time) {
+  if (!s.train) return null;
+  if (time >= s.trainSec[0] && time < s.trainSec[1]) return "train";
+  if (time >= s.testSec[0] && time < s.testSec[1]) return "test";
+  return "out";
+}
+
+function renderSets() {
+  const box = $("sets");
+  const rows = SETS[strat].map((s) => {
+    const m = s.test;
+    const res = m ? `<b class="${m.total > 0 ? "pos" : "neg"}">${sg(m.total, 1)} %</b><span>${m.trades} сд · WR ${(m.winRate * 100).toFixed(0)} %</span>` : "";
+    return `<button class="set" data-id="${s.id}" aria-pressed="${s.id === setId}">
+      <span class="nm">${esc(s.label)}</span><span class="per">${esc(s.sub)}</span><span class="res">${res}</span></button>`;
+  });
+  box.innerHTML = `<h2>Набор настроек</h2>${rows[0]}<h2>Лучшие по окнам · итог на проверке</h2>${rows.slice(1).join("")}
+    <details class="params" id="params"><summary>Параметры выбранного набора</summary><div id="ptable"></div></details>`;
+  box.querySelectorAll(".set").forEach((b) => b.addEventListener("click", () => selectSet(b.dataset.id)));
+  renderParams();
+}
+
+function renderParams() {
+  const s = SETS[strat].find((x) => x.id === setId);
+  const base = SETS[strat][0].params;
+  const keys = Object.keys(LBL).filter((k) => k in s.params);
+  $("ptable").innerHTML = `<table class="kv"><tr><th>Параметр</th><th style="text-align:right">Набор</th><th style="text-align:right">Оригинал</th></tr>${keys.map((k) => {
+    const v = s.params[k], b = base[k];
+    const fv = (x) => (typeof x === "number" && !Number.isInteger(x) ? x.toFixed(3).replace(/0+$/, "").replace(/\.$/, "") : x);
+    return `<tr class="${v !== b ? "chg" : ""}"><td>${LBL[k]}</td><td class="n">${fv(v)}</td><td class="n">${fv(b)}</td></tr>`;
+  }).join("")}</table><p class="sub" style="margin:6px 2px">Золотым — параметры, отличные от оригинала.</p>`;
+}
+
+function renderBar(trades) {
+  const s = SETS[strat].find((x) => x.id === setId);
+  const m = metrics(trades);
+  const per = s.train ? `<span>подбор <b class="mono">${s.train[0]} – ${s.train[1]}</b> · проверка <b class="mono">${s.test_[0]} – ${s.test_[1]}</b></span>
+    <button class="btn" id="go-test">К проверке</button>` : "";
+  $("bar").innerHTML = `<span class="stat">Весь период: <b>${m.trades}</b> сделок · WR <b>${(m.winRate * 100).toFixed(1)} %</b> · RR <b>${m.rr.toFixed(2)}</b> · сумма <b class="${m.total > 0 ? "pos" : "neg"}">${sg(m.total, 1)} %</b></span>
+    ${per}<span class="nav"><button class="btn" id="prev" aria-label="Предыдущая сделка">←</button><span id="cnt" class="mono">—</span><button class="btn" id="next" aria-label="Следующая сделка">→</button></span>`;
+  $("prev").onclick = () => step(-1);
+  $("next").onclick = () => step(1);
+  if (s.train) $("go-test").onclick = () => chart.timeScale().setVisibleRange({ from: s.testSec[0], to: Math.min(s.testSec[1], ds.t[ds.n - 1]) });
+  updateCounter();
+}
+
+function updateCounter() {
+  const tr = tradesOf(strat, setId);
+  $("cnt").textContent = selected != null ? `${selected + 1} / ${tr.length}` : `— / ${tr.length}`;
+}
+
+function step(d) {
+  const tr = tradesOf(strat, setId);
+  if (!tr.length) return;
+  let i = selected;
+  if (i == null) {
+    // ближайшая к правому краю видимой области
+    const r = chart.timeScale().getVisibleRange();
+    const edge = r ? r.to : ds.t[ds.n - 1];
+    i = tr.findIndex((x) => ds.t[x.entryIdx] > edge);
+    i = d > 0 ? (i < 0 ? tr.length - 1 : i) : (i < 0 ? tr.length - 1 : Math.max(0, i - 1));
+  } else i = Math.min(tr.length - 1, Math.max(0, i + d));
+  selectTrade(i, true);
+}
+
+function buildMarkers() {
+  const tr = tradesOf(strat, setId);
+  const out = [];
+  tr.forEach((x, i) => {
+    const t = ds.t[x.entryIdx], L = x.dir === 1, sel = i === selected;
+    out.push({ time: t, position: L ? "belowBar" : "aboveBar", shape: L ? "arrowUp" : "arrowDown",
+      color: L ? C.long : C.short, size: sel ? 2 : 1, id: "m" + i, text: sel ? (L ? "лонг" : "шорт") : "" });
+    out.push({ time: ds.t[x.exitIdx], position: "inBar", shape: "circle", color: x.pnl > 0 ? C.long : C.short,
+      size: sel ? 1 : 0.4, id: "x" + i });
+  });
+  if ($("ghost-on").checked) {
+    for (const [key, g] of ghostMap) {
+      const L = g.dir === 1;
+      out.push({ time: g.t, position: L ? "belowBar" : "aboveBar", shape: L ? "arrowUp" : "arrowDown",
+        color: C.ghost, size: 0.7, id: "g" + key, text: g.sets.length > 1 ? "×" + g.sets.length : "" });
+    }
+  }
+  if (selected != null) {
+    const w = tr[selected].why;
+    if (w && w.armT) out.push({ time: w.armT, position: tr[selected].dir === 1 ? "belowBar" : "aboveBar", shape: "square", color: C.gold, size: 0.8, id: "arm", text: "взвод" });
+    for (const e of tr[selected].exits) {
+      out.push({ time: e.t, position: tr[selected].dir === 1 ? "aboveBar" : "belowBar", shape: "circle",
+        color: e.kind.startsWith("TP") ? C.long : e.kind === "TIME" ? C.muted : e.kind === "SL" ? C.short : C.be, size: 0.8, id: "e" + e.t + e.kind, text: e.kind });
+    }
+  }
+  out.sort((a, b) => a.time - b.time);
+  candles.setMarkers(out);
+}
+
+function computeGhosts() {
+  const token = ++ghostToken;
+  ghostMap = new Map();
+  const others = SETS[strat].filter((s) => s.id !== setId);
+  let i = 0;
+  const tick = () => {
+    if (token !== ghostToken) return;
+    if (i >= others.length) { $("status").hidden = true; buildMarkers(); return; }
+    const s = others[i++];
+    for (const x of tradesOf(strat, s.id)) {
+      const t = ds.t[x.entryIdx], key = t + "_" + x.dir;
+      let g = ghostMap.get(key);
+      if (!g) ghostMap.set(key, (g = { t, dir: x.dir, sets: [] }));
+      g.sets.push(s.id);
+    }
+    $("status").hidden = false;
+    $("status").textContent = `Считаю входы других наборов: ${i} / ${others.length}`;
+    setTimeout(tick, 0);
+  };
+  tick();
+}
+
+function clearOverlay() {
+  priceLines.forEach((p) => candles.removePriceLine(p));
+  priceLines = [];
+  boxTop.setData([]); boxBot.setData([]); path.setData([]);
+}
+
+function selectSet(id, keepView) {
+  setId = id; selected = null;
+  document.querySelectorAll(".set").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.id === id)));
+  clearOverlay();
+  const tr = tradesOf(strat, id);
+  renderBar(tr); renderParams(); renderEmpty();
+  buildMarkers();
+  computeGhosts();
+}
+
+function renderEmpty() {
+  $("detail").innerHTML = `<h2>Сделка</h2><p class="empty">Нажмите на стрелку входа на графике или на «→» сверху — здесь появится, почему стратегия вошла, уровни и как закрылась сделка. Бледная стрелка покажет, какие наборы вошли на этой свече.</p>`;
+}
+
+function selectTrade(i, scroll) {
+  selected = i;
+  const tr = tradesOf(strat, setId)[i];
+  clearOverlay();
+  const L = tr.dir === 1, t0 = ds.t[tr.entryIdx], t1 = ds.t[tr.exitIdx];
+  const add = (price, color, title, style = 2) => priceLines.push(candles.createPriceLine({ price, color, lineWidth: 1, lineStyle: style, axisLabelVisible: true, title }));
+  add(tr.entry, C.fg, "вход", 0);
+  add(tr.sl0, C.short, "стоп");
+  tr.tp.forEach((p, k) => { if (tr.frac[k] > 0) add(p, C.long, "TP" + (k + 1)); });
+  const w = tr.why || {};
+  if (w.boxFrom) {
+    boxTop.setData([{ time: w.boxFrom, value: w.top }, { time: t0, value: w.top }]);
+    boxBot.setData([{ time: w.boxFrom, value: w.bottom }, { time: t0, value: w.bottom }]);
+  }
+  const lastEx = tr.exits[tr.exits.length - 1];
+  path.setData(t1 > t0 ? [{ time: t0, value: tr.entry }, { time: t1, value: lastEx.price }] : []);
+  buildMarkers();
+  if (scroll) {
+    const from = Math.min(t0, w.boxFrom || w.armT || t0) - 60 * 900, to = t1 + 40 * 900;
+    chart.timeScale().setVisibleRange({ from, to });
+  }
+  renderTrade(tr, i);
+  updateCounter();
+}
+
+function renderTrade(tr, i) {
+  const s = SETS[strat].find((x) => x.id === setId);
+  const L = tr.dir === 1, t0 = ds.t[tr.entryIdx], w = tr.why;
+  const per = periodOf(s, t0);
+  const chip = per === "test" ? `<span class="chip test">в проверке набора — подбор этих свечей не видел</span>`
+    : per === "train" ? `<span class="chip">в периоде подбора набора — набор подогнан под эти свечи</span>`
+    : per === "out" ? `<span class="chip">вне окна этого набора</span>` : "";
+  let why = "";
+  if (strat === "wsb") {
+    const edge = w.edge === "wick" ? "по теням" : "по телам";
+    const lvl = L ? w.top : w.bottom;
+    const dist = Math.abs(w.close - lvl);
+    const riskAtr = L ? w.close - w.atr * w.slAtr : w.close + w.atr * w.slAtr;
+    why = `<div class="why">
+      <p><b>1. Бокс.</b> ${w.win} свечей с ${fmtT(w.boxFrom).slice(11)} до ${fmtT(w.boxFormed).slice(11)}, границы ${edge}: верх <span class="mono">${f2(w.top)}</span>, низ <span class="mono">${f2(w.bottom)}</span>.</p>
+      <p><b>2. Тени в окне.</b> Медвежьих ${w.bear}, бычьих ${w.bull}; бокс открывается, когда одних ≥ ${w.need}.</p>
+      <div class="wicks">${w.wicks.map(([t, d]) => `<span class="${d > 0 ? "pos" : "neg"}">${fmtT(t).slice(11)} ${d > 0 ? "бычья" : "медвежья"}</span>`).join("")}</div>
+      <p><b>3. Пробой.</b> Закрытие <span class="mono">${f2(w.close)}</span> ${L ? "выше верха" : "ниже низа"} бокса на <span class="mono">${f2(dist)}</span> (${(dist / w.atr).toFixed(2)} ATR); нужно закрытий подряд: ${w.confirm}. Свечей от появления бокса до пробоя: ${w.age}.</p>
+      <p><b>4. Стоп.</b> ATR <span class="mono">${f2(w.atr)}</span> × ${w.slAtr} → <span class="mono">${f2(riskAtr)}</span>; ${L ? "низ" : "верх"} бокса <span class="mono">${f2(L ? w.bottom : w.top)}</span>; берётся дальний: <span class="mono">${f2(tr.sl0)}</span>.</p>
+    </div>`;
+  } else {
+    const a = w.arm, ago = Math.round((t0 - w.armT) / 900);
+    const row = (name, v, cond, ok) => `<tr><td>${name}</td><td class="n">${v}</td><td class="n">${cond}</td><td class="${ok ? "ok" : "no"}">${ok ? "✓" : "✗"}</td></tr>`;
+    const cmp = L ? "≤" : "≥", s1 = L ? "<" : ">";
+    const tv = w.turn.vals;
+    const dev = +s.params.vwapDev.toFixed(2);
+    why = `<div class="why">
+      <p><b>1. Взвод</b> на свече ${fmtT(w.armT).slice(5)} — за ${ago} свеч. до входа (окно ${w.armWin}). Все пять условий на ней:</p>
+      <table class="kv"><tr><th>Условие</th><th style="text-align:right">Значение</th><th style="text-align:right">Порог</th><th></th></tr>
+      ${row(L ? `Нижняя Боллинджера vs VWAP − ${dev} %` : `Верхняя Боллинджера vs VWAP + ${dev} %`, f2(a.bb), cmp + " " + f2(a.vwapLine), L ? a.bb <= a.vwapLine : a.bb >= a.vwapLine)}
+      ${row("SMI (TSI)", a.tsi.toFixed(1), s1 + " 0", L ? a.tsi < 0 : a.tsi > 0)}
+      ${row("AO", a.ao.toFixed(2), s1 + " 0", L ? a.ao < 0 : a.ao > 0)}
+      ${row("UO", a.uo.toFixed(2), s1 + " " + a.uoThr.toFixed(2), L ? a.uo < a.uoThr : a.uo > a.uoThr)}
+      ${row("LRS", a.lrs.toFixed(2), s1 + " " + a.lrsThr.toFixed(2), L ? a.lrs < a.lrsThr : a.lrs > a.lrsThr)}
+      </table>
+      <p><b>2. Развороты</b> на свече входа: ${w.turns} из 4, нужно ≥ ${w.turnsNeed}.</p>
+      <table class="kv">
+      ${row("AO сменил цвет", `${tv.ao[0].toFixed(2)} → ${tv.ao[1].toFixed(2)}`, L ? "растёт" : "падает", w.turn.ao)}
+      ${row("SMI пересёк сигнал", `${tv.tsi[0].toFixed(1)} → ${tv.tsi[1].toFixed(1)}`, `сигнал ${tv.sig[1].toFixed(1)}`, w.turn.smi)}
+      ${row("UO", `${tv.uo[0].toFixed(2)} → ${tv.uo[1].toFixed(2)}`, L ? "растёт" : "падает", w.turn.uo)}
+      ${row("LRS", `${tv.lrs[0].toFixed(2)} → ${tv.lrs[1].toFixed(2)}`, L ? "растёт" : "падает", w.turn.lrs)}
+      </table>
+    </div>`;
+  }
+  const ex = tr.exits.map((e) => {
+    const mv = ((L ? e.price - tr.entry : tr.entry - e.price) / tr.entry) * 100;
+    return `<tr><td>${KIND[e.kind]}</td><td class="n">${fmtT(e.t).slice(5)}</td><td class="n">${f2(e.price)}</td><td class="n">${Math.round(e.frac * 100)} %</td><td class="n ${mv >= 0 ? "pos" : "neg"}">${sg(mv)} %</td></tr>`;
+  }).join("");
+  const lv = [["Стоп", tr.sl0, null], ...tr.tp.map((p, k) => ["TP" + (k + 1), p, tr.frac[k]])]
+    .map(([n, p, f]) => `<tr><td>${n}</td><td class="n">${f2(p)}</td><td class="n">${sg(((L ? p - tr.entry : tr.entry - p) / tr.entry) * 100)} %</td><td class="n">${f == null ? "" : Math.round(f * 100) + " %"}</td></tr>`).join("");
+  $("detail").innerHTML = `
+    <div class="tr-head"><span class="dir ${L ? "pos" : "neg"}">${L ? "▲ Лонг" : "▼ Шорт"}</span><span class="pnl ${tr.pnl > 0 ? "pos" : "neg"}">${sg(tr.pnl)} %</span></div>
+    <div class="sub">#${i + 1} · вход ${fmtT(t0)} · ${f2(tr.entry)}</div>${chip}
+    <h2>Почему вошла</h2>${why}
+    <h2>Уровни</h2><table class="kv"><tr><th>Уровень</th><th style="text-align:right">Цена</th><th style="text-align:right">От входа</th><th style="text-align:right">Доля</th></tr>${lv}</table>
+    <h2>Как закрылась</h2><table class="kv"><tr><th>Выход</th><th style="text-align:right">Время</th><th style="text-align:right">Цена</th><th style="text-align:right">Доля</th><th style="text-align:right">Ход</th></tr>${ex}</table>
+    <p class="sub" style="margin-top:6px">PnL = сумма долей × ход цены − комиссия 0,04 %.</p>`;
+}
+
+function renderGhost(key) {
+  const g = ghostMap.get(key);
+  if (!g) return;
+  const names = g.sets.map((id) => SETS[strat].find((s) => s.id === id));
+  $("detail").innerHTML = `<h2>Другие наборы на этой свече</h2>
+    <p class="sub">${fmtT(g.t)} · ${g.dir === 1 ? "лонг" : "шорт"} · ${g.sets.length} ${g.sets.length === 1 ? "набор" : "наборов"}</p>
+    <div class="ghosts">${names.map((s) => `<button class="set" data-id="${s.id}"><span class="nm">${esc(s.label)}</span><span class="per">${esc(s.sub)}</span></button>`).join("")}</div>
+    <p class="sub" style="margin-top:8px">Нажмите на набор — он станет основным, и откроется его сделка на этой свече.</p>`;
+  $("detail").querySelectorAll(".set").forEach((b) => b.addEventListener("click", () => {
+    selectSet(b.dataset.id);
+    const i = tradesOf(strat, setId).findIndex((x) => ds.t[x.entryIdx] === g.t && x.dir === g.dir);
+    if (i >= 0) selectTrade(i, false);
+  }));
+}
+
+function onClick(p) {
+  if (!p.time) return;
+  const id = p.hoveredObjectId;
+  const tr = tradesOf(strat, setId);
+  if (typeof id === "string") {
+    if (id[0] === "m" || id[0] === "x") return selectTrade(+id.slice(1), false);
+    if (id[0] === "g") return renderGhost(id.slice(1));
+  }
+  // промах мимо стрелки: вход на этой свече, затем бледная стрелка
+  const i = tr.findIndex((x) => ds.t[x.entryIdx] === p.time);
+  if (i >= 0) return selectTrade(i, false);
+  for (const d of [1, -1]) if (ghostMap.has(p.time + "_" + d)) return renderGhost(p.time + "_" + d);
+}
+
+function setStrategy(s) {
+  strat = s;
+  $("s-wsb").setAttribute("aria-pressed", String(s === "wsb"));
+  $("s-mr").setAttribute("aria-pressed", String(s === "mr"));
+  setId = "orig";
+  renderSets();
+  selectSet("orig");
+}
+
+async function main() {
+  const rows = await loadData();
+  ds = makeDataset(rows);
+  chart = LightweightCharts.createChart($("chart"), {
+    autoSize: true,
+    localization: { locale: "ru-RU" },
+    layout: { background: { type: "solid", color: C.bg }, textColor: C.muted, fontFamily: "IBM Plex Mono, ui-monospace, monospace", fontSize: 11 },
+    grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
+    rightPriceScale: { borderColor: C.line },
+    timeScale: { borderColor: C.line, timeVisible: true, secondsVisible: false, rightOffset: 6 },
+    crosshair: { mode: 0, vertLine: { color: "#3a4452", labelBackgroundColor: "#2a323d" }, horzLine: { color: "#3a4452", labelBackgroundColor: "#2a323d" } },
+  });
+  candles = chart.addCandlestickSeries({ upColor: C.up, downColor: C.down, borderVisible: false, wickUpColor: C.up, wickDownColor: C.down, priceLineVisible: false, lastValueVisible: false });
+  candles.setData(rows.map((r) => ({ time: r[0], open: r[1], high: r[2], low: r[3], close: r[4] })));
+  const ln = (color, style, width = 1) => chart.addLineSeries({ color, lineWidth: width, lineStyle: style, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+  boxTop = ln(C.gold, 0, 2); boxBot = ln(C.gold, 0, 2); path = ln(C.fg, 1);
+  chart.subscribeClick(onClick);
+  $("s-wsb").onclick = () => setStrategy("wsb");
+  $("s-mr").onclick = () => setStrategy("mr");
+  $("ghost-on").onchange = buildMarkers;
+  setStrategy("wsb");
+  chart.timeScale().setVisibleRange({ from: ds.t[ds.n - 1] - 7 * 86400, to: ds.t[ds.n - 1] });
+}
+main().catch((e) => { $("status").hidden = false; $("status").textContent = "Ошибка: " + e.message; });
+</script>
