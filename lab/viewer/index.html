@@ -633,7 +633,9 @@ function renderBar(trades) {
   const m = metrics(trades);
   const per = s.train ? `<span>подбор <b class="mono">${s.train[0]} – ${s.train[1]}</b> · проверка <b class="mono">${s.test_[0]} – ${s.test_[1]}</b></span>
     <button class="btn" id="go-test">К проверке</button>` : "";
-  $("bar").innerHTML = `<span class="stat">Весь период: <b>${m.trades}</b> сделок · WR <b>${(m.winRate * 100).toFixed(1)} %</b> · RR <b>${m.rr.toFixed(2)}</b> · сумма <b class="${m.total > 0 ? "pos" : "neg"}">${sg(m.total, 1)} %</b></span>
+  // Плановый R:R сделки: взвешенный по долям путь до TP / путь до стартового стопа
+  const rrPlan = trades.length ? trades.reduce((a, x) => a + x.tp.reduce((u, p, k) => u + x.frac[k] * Math.abs(p - x.entry), 0) / Math.abs(x.entry - x.sl0), 0) / trades.length : 0;
+  $("bar").innerHTML = `<span class="stat">Весь период: <b>${m.trades}</b> сделок · WR <b>${(m.winRate * 100).toFixed(1)} %</b> · <span title="Средний плановый риск к прибыли: путь до TP1/TP2/TP3 с учётом долей, делённый на путь до стопа">ср. R:R план <b>1 : ${rrPlan.toFixed(2)}</b></span> · <span title="Средний выигрыш / средний проигрыш по закрытым сделкам">R:R факт <b>1 : ${m.rr.toFixed(2)}</b></span> · сумма <b class="${m.total > 0 ? "pos" : "neg"}">${sg(m.total, 1)} %</b></span>
     ${per}<span class="nav"><button class="btn" id="prev" aria-label="Предыдущая сделка">←</button><span id="cnt" class="mono">—</span><button class="btn" id="next" aria-label="Следующая сделка">→</button></span>`;
   $("prev").onclick = () => step(-1);
   $("next").onclick = () => step(1);
