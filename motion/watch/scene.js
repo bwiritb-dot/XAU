@@ -28,6 +28,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuff
 renderer.setSize(W, H, false);
 renderer.domElement.style.cssText = 'width:1920px;height:1080px';
 renderer.localClippingEnabled = true;
+renderer.autoClear = false; // passes clear explicitly; accumulation must not be wiped between subframes
 const stage = document.getElementById('stage');
 stage.insertBefore(renderer.domElement, stage.firstChild);
 stage.style.transform = `scale(${W / 1920})`;
@@ -381,14 +382,14 @@ const paperG = new THREE.Group(); scene.add(paperG);
 const paperInner = new THREE.Group(); paperG.add(paperInner); // pivot at bottom edge
 paperG.position.set(0, -7, -1.0); paperInner.position.set(0, 7, 0);
 const paperMat = new THREE.MeshBasicMaterial({ map: paperTex, color: 0xffffff });
-const PB = 1.55; // paper is lit hotter than the studio
+const PB = 2.2; // paper is lit hotter than the studio
 paperTex.repeat.set(1, 1);
 mesh(new THREE.PlaneGeometry(22, 22), paperMat, paperInner);
 const sheet2 = mesh(new THREE.PlaneGeometry(9, 12), new THREE.MeshBasicMaterial({ map: paperTex, color: 0xf6f0e4 }), paperInner, [-9.2, 3.5, 0.03], [0, 0, 0.18]);
 const conMats = [];
 function conLines(pts, parent, w = 1.5, op = 0.7) {
   const g = new LineSegmentsGeometry(); g.setPositions(pts);
-  const m = new LineMaterial({ color: 0x3b4150, linewidth: w * LW, transparent: true, opacity: op, depthWrite: false });
+  const m = new LineMaterial({ color: 0x262b36, linewidth: w * LW, transparent: true, opacity: op, depthWrite: false });
   m.userData.baseOp = op; conMats.push(m);
   const l = new LineSegments2(g, m); l.frustumCulled = false; parent.add(l); return l;
 }
@@ -558,7 +559,7 @@ function pose(t) {
   lineMats.forEach(m => { m.color.copy(lc); m.opacity = m.userData.baseOp * (t > TL.sweep[1] + 0.1 ? 0 : 1); });
   sketchRoot.visible = t < TL.sweep[1] + 0.1;
   // --- paper: lights go down, then it falls away
-  const pd = 1 - dim * 0.965;
+  const pd = 1 - dim * 0.985;
   paperMat.color.setScalar(pd * PB); sheet2.material.color.setRGB(0.96 * pd * PB, 0.94 * pd * PB, 0.9 * pd * PB); ruler.material.color.setScalar(0.98 * pd * PB);
   conMats.forEach(m => { m.opacity = m.userData.baseOp * (1 - dim * 0.85); });
   notes.forEach(m => m.material.uniforms.op.value = 1 - dim * 0.8);
@@ -678,11 +679,11 @@ const blurMat = new THREE.ShaderMaterial({
       vec3 bl=vec3(0.);
       for(int i=0;i<16;i++){ float r=(3.+float(i)*2.)*${PX}; float a=float(i)*ga*1.3;
         bl += max(texture2D(src, vUv+vec2(cos(a),sin(a))*r/res).rgb-1.2,0.)*exp(-float(i)*0.15); }
-      gl_FragColor = vec4(acc/ws + bl*0.07, c0.a);
+      gl_FragColor = vec4(acc/ws + bl*0.035, c0.a);
     }`,
 });
 const compMat = new THREE.ShaderMaterial({
-  uniforms: { tex: { value: rtAcc.texture }, blur: { value: rtBlur.texture }, res: { value: new THREE.Vector2(W, H) }, frame: { value: 0 }, expo: { value: 1 }, fade: { value: 1 },
+  uniforms: { tex: { value: rtAcc.texture }, blur: { value: rtBlur.texture }, res: { value: new THREE.Vector2(W, H) }, frame: { value: 0 }, expo: { value: 0.5 }, fade: { value: 1 },
     focus: { value: 8 }, apt: { value: 0.5 } },
   vertexShader: VS, depthTest: false, depthWrite: false,
   fragmentShader: `uniform sampler2D tex, blur; uniform float frame, expo, fade; uniform vec2 res; varying vec2 vUv;
@@ -733,7 +734,7 @@ window.renderFrame = (t, fps = 60, minK = 3, maxK = 10) => {
   renderer.setRenderTarget(rtAcc); renderer.setClearColor(0x000000, 0); renderer.clear();
   offs.forEach((o, i) => {
     pose(t + o);
-    if (K > 1) camera.setViewOffset(W, H, halton(i + 1, 2) - 0.5, halton(i + 1, 3) - 0.5, W, H); else camera.clearViewOffset();
+    if (K > 1 && !window.NOJIT) camera.setViewOffset(W, H, halton(i + 1, 2) - 0.5, halton(i + 1, 3) - 0.5, W, H); else camera.clearViewOffset();
     const P4 = clipSolid.clone().applyMatrix4(camera.matrixWorldInverse);
     U.uSeam.value.set(P4.normal.x, P4.normal.y, P4.normal.z, P4.constant);
     renderer.setRenderTarget(rtScene); renderer.setClearColor(0x000000, 1); renderer.clear(); renderer.render(scene, camera);
