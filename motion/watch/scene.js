@@ -62,7 +62,7 @@ const clipSolid = new THREE.Plane().copy(seamWorld);
 const clipLine = new THREE.Plane();
 
 function metal(rgb, rough, extra = {}) {
-  const m = new THREE.MeshPhysicalMaterial({ color: new THREE.Color().setRGB(...rgb), metalness: 1, roughness: rough, ...extra });
+  const m = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(...rgb), metalness: 1, roughness: rough, ...extra });
   return patch(m);
 }
 function patch(m) {
@@ -86,7 +86,7 @@ const M = {
   rhod: metal([0.72, 0.72, 0.74], 0.24),
   ruby: patch(new THREE.MeshPhysicalMaterial({ color: 0x8a0716, roughness: 0.08, clearcoat: 1 })),
   blue: metal([0.05, 0.1, 0.35], 0.2),
-  crystal: patch(new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.02, metalness: 0, transparent: true, opacity: 0.13, depthWrite: false, clearcoat: 1, envMapIntensity: 2 })),
+  crystal: patch(new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.02, metalness: 0, transparent: true, opacity: 0.1, depthWrite: false, clearcoat: 1, envMapIntensity: 0.9 })),
 };
 
 // ---------- canvas textures ----------
@@ -381,7 +381,7 @@ const paperG = new THREE.Group(); scene.add(paperG);
 const paperInner = new THREE.Group(); paperG.add(paperInner); // pivot at bottom edge
 paperG.position.set(0, -7, -1.0); paperInner.position.set(0, 7, 0);
 const paperMat = new THREE.MeshBasicMaterial({ map: paperTex, color: 0xffffff });
-const PB = 2.3; // paper is lit hotter than the studio
+const PB = 1.55; // paper is lit hotter than the studio
 paperTex.repeat.set(1, 1);
 mesh(new THREE.PlaneGeometry(22, 22), paperMat, paperInner);
 const sheet2 = mesh(new THREE.PlaneGeometry(9, 12), new THREE.MeshBasicMaterial({ map: paperTex, color: 0xf6f0e4 }), paperInner, [-9.2, 3.5, 0.03], [0, 0, 0.18]);
@@ -485,10 +485,10 @@ const CK = [ // t, pos, target, fov, roll, aperture
   [16.0, [5.6, 2.4, 8.4], [0.0, 0.0, 0.5], 34, 0.07, 0.3],
   [18.2, [10.4, 2.6, 3.6], [0.0, 0.0, 0.6], 34, 0.06, 0.28],
   [20.4, [8.6, -2.0, 6.6], [0.0, 0.0, 0.3], 33, -0.02, 0.3],
-  [22.6, [3.0, -2.6, 8.6], [0.0, 0.0, 0.1], 31, -0.06, 0.4],
+  [22.6, [5.4, -2.3, 8.0], [0.0, 0.0, 0.3], 31, -0.06, 0.4],
   [24.8, [-3.0, -1.2, 7.8], [-0.9, 0.0, 0.0], 29, -0.05, 0.5],
-  [27.2, [-4.3, 0.8, 8.2], [-1.85, -0.05, 0.0], 28, -0.02, 0.5],
-  [30.0, [-4.7, 1.1, 7.9], [-2.0, -0.05, 0.0], 27.5, 0.0, 0.5],
+  [27.2, [-4.4, 0.8, 8.8], [-1.55, -0.05, 0.0], 28, -0.02, 0.5],
+  [30.0, [-4.8, 1.1, 8.5], [-1.65, -0.05, 0.0], 27.5, 0.0, 0.5],
 ];
 function crSpline(t, idx) {
   let i = 0; while (i < CK.length - 2 && t > CK[i + 1][0]) i++;
@@ -554,7 +554,7 @@ function pose(t) {
   const s = lerp(0.015, 1, lift);
   sketchRoot.scale.set(1, 1, s); sketchRoot.position.z = -0.95 * (1 - s);
   const dim = ss(prog(...TL.dim, t));
-  const lc = new THREE.Color(0x2a2a2e).lerp(new THREE.Color(2.2, 1.5, 0.75), ss(prog(7.7, 8.9, t)));
+  const lc = new THREE.Color(0x2a2a2e).lerp(new THREE.Color(2.2, 1.5, 0.75), ss(prog(7.4, 8.6, t)));
   lineMats.forEach(m => { m.color.copy(lc); m.opacity = m.userData.baseOp * (t > TL.sweep[1] + 0.1 ? 0 : 1); });
   sketchRoot.visible = t < TL.sweep[1] + 0.1;
   // --- paper: lights go down, then it falls away
@@ -649,44 +649,59 @@ const accMat = new THREE.ShaderMaterial({
   fragmentShader: 'uniform sampler2D tex; uniform float w; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(tex,vUv).rgb*w, w); }',
   blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, depthTest: false, depthWrite: false,
 });
-const compMat = new THREE.ShaderMaterial({
-  uniforms: { tex: { value: rtAcc.texture }, dep: { value: rtScene.depthTexture }, focus: { value: 8 }, apt: { value: 0.5 }, near: { value: 0.1 }, far: { value: 200 },
-    res: { value: new THREE.Vector2(W, H) }, frame: { value: 0 }, expo: { value: 1 }, fade: { value: 1 } },
-  vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }',
-  fragmentShader: `
-    uniform sampler2D tex, dep; uniform float focus, apt, near, far, frame, expo, fade; uniform vec2 res; varying vec2 vUv;
+// post in three passes: CoC at half res -> DOF/bloom gather at half res -> full-res grade (sharp/blurred mix by CoC)
+const HW = W >> 1, HH = H >> 1;
+const rtCoc = new THREE.WebGLRenderTarget(HW, HH, { type: THREE.HalfFloatType, depthBuffer: false });
+const rtBlur = new THREE.WebGLRenderTarget(HW, HH, { type: THREE.HalfFloatType, depthBuffer: false });
+const VS = 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }';
+const PX = (H / 1080).toFixed(4);
+const cocMat = new THREE.ShaderMaterial({
+  uniforms: { tex: { value: rtAcc.texture }, dep: { value: rtScene.depthTexture }, focus: { value: 8 }, apt: { value: 0.5 }, near: { value: 0.1 }, far: { value: 200 } },
+  vertexShader: VS, depthTest: false, depthWrite: false,
+  fragmentShader: `uniform sampler2D tex, dep; uniform float focus, apt, near, far; varying vec2 vUv;
     float lin(float d){ float z=d*2.-1.; return 2.*near*far/(far+near-z*(far-near)); }
-    float coc(vec2 uv){ float d=lin(texture2D(dep,uv).x); return clamp(apt*abs(1.-focus/d)*22.*res.y/1080., 0., 26.*res.y/1080.); }
+    void main(){ float d=lin(texture2D(dep,vUv).x);
+      gl_FragColor = vec4(texture2D(tex,vUv).rgb, clamp(apt*abs(1.-focus/d)*22.*${PX}, 0., 26.*${PX})); }`,
+});
+const blurMat = new THREE.ShaderMaterial({
+  uniforms: { src: { value: rtCoc.texture }, res: { value: new THREE.Vector2(HW, HH) } },
+  vertexShader: VS, depthTest: false, depthWrite: false,
+  fragmentShader: `uniform sampler2D src; uniform vec2 res; varying vec2 vUv;
+    void main(){
+      vec4 c0 = texture2D(src,vUv); vec3 acc=c0.rgb; float ws=1.; const float ga=2.39996;
+      for(int i=1;i<32;i++){
+        float r = sqrt(float(i)/32.)*13.*${PX}; float a=float(i)*ga;   // half-res pixels
+        vec4 s = texture2D(src, vUv+vec2(cos(a),sin(a))*r/res);
+        float w = smoothstep(r-0.8, r+0.3, min(s.a*0.5, max(c0.a*0.5, s.a*0.3)));
+        acc += s.rgb*w; ws += w;
+      }
+      vec3 bl=vec3(0.);
+      for(int i=0;i<16;i++){ float r=(3.+float(i)*2.)*${PX}; float a=float(i)*ga*1.3;
+        bl += max(texture2D(src, vUv+vec2(cos(a),sin(a))*r/res).rgb-1.2,0.)*exp(-float(i)*0.15); }
+      gl_FragColor = vec4(acc/ws + bl*0.07, c0.a);
+    }`,
+});
+const compMat = new THREE.ShaderMaterial({
+  uniforms: { tex: { value: rtAcc.texture }, blur: { value: rtBlur.texture }, res: { value: new THREE.Vector2(W, H) }, frame: { value: 0 }, expo: { value: 1 }, fade: { value: 1 },
+    focus: { value: 8 }, apt: { value: 0.5 } },
+  vertexShader: VS, depthTest: false, depthWrite: false,
+  fragmentShader: `uniform sampler2D tex, blur; uniform float frame, expo, fade; uniform vec2 res; varying vec2 vUv;
     vec3 aces(vec3 x){ return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.); }
     float h(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233))+frame*0.618)*43758.5453); }
     void main(){
-      float c0 = coc(vUv);
-      vec3 acc = texture2D(tex,vUv).rgb; float wsum = 1.;
-      const int N = 40; float ga = 2.39996;
-      for(int i=1;i<N;i++){
-        float r = sqrt(float(i)/float(N)) * 26.*res.y/1080.; float a = float(i)*ga;
-        vec2 o = vec2(cos(a),sin(a))*r/res;
-        float cs = coc(vUv+o);
-        float w = smoothstep(r-1.5, r+0.5, min(cs, max(c0, cs*0.6)));
-        acc += texture2D(tex, vUv+o).rgb*w; wsum += w;
-      }
-      vec3 col = acc/wsum;
-      // bloom (cheap ring gather of highlights)
-      vec3 bl = vec3(0.);
-      for(int i=0;i<24;i++){ float r = (6.+float(i)*2.6)*res.y/1080.; float a=float(i)*ga*1.3;
-        vec3 s = texture2D(tex, vUv+vec2(cos(a),sin(a))*r/res).rgb; bl += max(s-1.2,0.)*exp(-float(i)*0.12); }
-      col += bl*0.05;
-      // chromatic edge
-      vec2 dc = (vUv-.5); float r2 = dot(dc,dc);
-      col.r = mix(col.r, texture2D(tex, vUv - dc*r2*0.006).r, 0.5*smoothstep(0.05,0.3,r2));
-      col.b = mix(col.b, texture2D(tex, vUv + dc*r2*0.006).b, 0.5*smoothstep(0.05,0.3,r2));
+      vec4 b = texture2D(blur,vUv);
+      vec3 sharp = texture2D(tex,vUv).rgb;
+      float m = smoothstep(0.6, 2.5, b.a);
+      vec3 col = mix(sharp, b.rgb, m);
+      vec2 dc = vUv-.5; float r2 = dot(dc,dc);
+      col.r = mix(col.r, texture2D(tex, vUv - dc*r2*0.006).r, 0.5*smoothstep(0.05,0.3,r2)*(1.-m));
+      col.b = mix(col.b, texture2D(tex, vUv + dc*r2*0.006).b, 0.5*smoothstep(0.05,0.3,r2)*(1.-m));
       col = aces(col*expo);
       col *= mix(1., 0.62, smoothstep(0.12, 0.62, r2*1.6));
       col = pow(col, vec3(1./2.2));
       col += (h(vUv*res)-.5)*0.028;
       gl_FragColor = vec4(col*fade,1.);
     }`,
-  depthTest: false, depthWrite: false,
 });
 const fsScene = new THREE.Scene(); const fsQuad = new THREE.Mesh(fsGeo, accMat); fsScene.add(fsQuad);
 
@@ -725,11 +740,12 @@ window.renderFrame = (t, fps = 60, minK = 3, maxK = 10) => {
     accMat.uniforms.w.value = 1 / K; renderer.setRenderTarget(rtAcc); renderer.render(fsScene, fsCam);
   });
   camera.clearViewOffset();
+  cocMat.uniforms.focus.value = camState.focus; cocMat.uniforms.apt.value = camState.apt;
+  fsQuad.material = cocMat; renderer.setRenderTarget(rtCoc); renderer.render(fsScene, fsCam);
+  fsQuad.material = blurMat; renderer.setRenderTarget(rtBlur); renderer.render(fsScene, fsCam);
   fsQuad.material = compMat;
-  Object.assign(compMat.uniforms, {});
-  compMat.uniforms.focus.value = camState.focus; compMat.uniforms.apt.value = camState.apt;
   compMat.uniforms.frame.value = Math.round(t * fps);
-  compMat.uniforms.fade.value = Math.min(ss(prog(0, 0.5, t)) * 0.9 + 0.1, 1 - 0.0 * ss(prog(29.6, 30, t)));
+  compMat.uniforms.fade.value = Math.min(ss(prog(0, 0.5, t)) * 0.9 + 0.1, 1);
   renderer.setRenderTarget(null); renderer.render(fsScene, fsCam);
   fsQuad.material = accMat;
   ui(t);
