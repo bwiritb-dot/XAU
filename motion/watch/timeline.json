@@ -1,0 +1,39 @@
+{
+  "dur": 30,
+  "bpm": 120,
+  "sketch": {
+    "construct": [0.2, 1.6],
+    "case": [1.2, 3.4],
+    "bezel": [2.0, 4.0],
+    "dial": [3.3, 5.2],
+    "hands": [4.9, 5.9],
+    "crown": [5.6, 6.1],
+    "bracelet": [5.4, 7.2]
+  },
+  "notes": [
+    ["fig. 01 — line", 1.4, 2.4],
+    ["Ø 40.0", 6.2, 6.8],
+    ["cal. 01 · 28 800 vph", 6.6, 7.3]
+  ],
+  "dimLine": [6.0, 6.6],
+  "pencilOut": [7.3, 8.1],
+  "lift": [7.6, 9.0],
+  "dim": [7.8, 9.4],
+  "sweep": [8.4, 10.0],
+  "paperFall": [9.0, 11.6],
+  "tickStart": 10.0,
+  "form": [10.2, 13.6],
+  "crownOut": [13.0, 14.0],
+  "explode": {
+    "crystal": 14.0, "bezel": 14.0, "sec": 14.5, "min": 14.625, "hour": 14.75,
+    "dial": 15.0, "movement": 15.5, "rotor": 15.5, "case": 16.0, "caseback": 16.0
+  },
+  "labels": [16.2, 19.6],
+  "assemble": {
+    "caseback": 20.5, "case": 21.0, "rotor": 21.5, "movement": 21.5, "dial": 22.0,
+    "hour": 22.5, "min": 22.75, "sec": 23.0, "bezel": 23.5, "crystal": 24.0
+  },
+  "crownIn": [24.0, 25.0],
+  "title": [25.0, 27.2],
+  "glint": 27.0
+}

@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Line Form Time</title>
+<style>
+  @font-face { font-family: Corm; font-weight: 300; src: url(fonts/cormorant-garamond-latin-300-normal.woff2); }
+  @font-face { font-family: Corm; font-weight: 500; src: url(fonts/cormorant-garamond-latin-500-normal.woff2); }
+  @font-face { font-family: CormI; font-style: italic; src: url(fonts/cormorant-garamond-latin-400-italic.woff2); }
+  @font-face { font-family: Mono; src: url(fonts/jetbrains-mono-latin-400-normal.woff2); }
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  #stage { position: relative; width: 1920px; height: 1080px; transform-origin: 0 0; }
+  canvas { position: absolute; inset: 0; }
+  #ui { position: absolute; inset: 0; pointer-events: none; }
+  #ui svg { position: absolute; inset: 0; }
+  .lab { position: absolute; font: 16px Mono; letter-spacing: .22em; color: rgba(244,228,198,.9); white-space: pre; }
+  .lab b { font-weight: 400; color: rgba(214,170,92,.95); margin-right: .9em; }
+  #title { position: absolute; left: 120px; top: 440px; font: 300 84px Corm; color: #f3e6cc; white-space: pre; }
+  #title span { display: inline-block; }
+  #sub { position: absolute; left: 126px; top: 560px; font: 16px Mono; letter-spacing: .32em; color: rgba(214,170,92,.9); white-space: pre; }
+</style>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+</head>
+<body>
+<div id="stage"><div id="ui"><svg id="lead" width="1920" height="1080"></svg><div id="labs"></div><div id="title"></div><div id="sub"></div></div></div>
+<script type="module" src="scene.js"></script>
+</body>
+</html>
